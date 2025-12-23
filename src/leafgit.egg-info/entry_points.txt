@@ -1,0 +1,2 @@
+[console_scripts]
+leafgit = main:main

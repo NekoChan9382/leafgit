@@ -1,0 +1,114 @@
+Metadata-Version: 2.4
+Name: leafgit
+Version: 0.1.0
+Summary: Git/GitHub GUI client for beginners to learn Git operations
+Home-page: https://github.com/NekoChan9382/leafgit
+Author: NekoChan9382
+Author-email: mushbeen25@gmail.com
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Education
+Classifier: Topic :: Software Development :: Version Control :: Git
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: PySide6>=6.6.0
+Requires-Dist: GitPython>=3.1.40
+Requires-Dist: PyGithub>=2.1.0
+Requires-Dist: cryptography>=41.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4.0; extra == "dev"
+Requires-Dist: pytest-qt>=4.2.0; extra == "dev"
+Requires-Dist: black>=23.0.0; extra == "dev"
+Requires-Dist: flake8>=6.1.0; extra == "dev"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license-file
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# LeafGit
+
+Git/GitHub の操作を GUI で行うための学習支援アプリケーション
+
+## 概要
+
+LeafGit は、CLI ベースの操作に慣れていない初学者を対象とした、Git/GitHub 操作のための GUI アプリケーションです。
+Git、GitHub、CLI 操作への理解と移行を支援することを目的としています。
+
+## 主な機能
+
+### 基本の Git 操作
+
+- リポジトリの作成・クローン
+- ファイルのステージング・コミット
+- ブランチ管理
+- プッシュ・プル
+
+### 学習支援機能
+
+- 操作に対応する Git コマンドの表示
+- コマンド履歴のリアルタイム表示
+- Git 用語集
+- 段階的ヘルプシステム
+
+### GitHub 連携
+
+- Personal Access Token 認証
+- リポジトリ一覧表示とクローン
+- リモートリポジトリへの push/pull
+
+## 必要要件
+
+- Python 3.12 以上
+- Git（システムにインストール済みであること）
+
+## インストール
+
+```bash
+# リポジトリのクローン
+git clone https://github.com/NekoChan9382/leafgit.git
+cd leafgit
+
+# 依存関係のインストール
+pip install -r requirements.txt
+
+# 開発用の依存関係も含める場合
+pip install -e .[dev]
+```
+
+## 使い方
+
+```bash
+# アプリケーションの起動
+python src/main.py
+```
+
+## 開発
+
+```bash
+# テストの実行
+pytest
+
+# コードフォーマット
+black src/
+
+# リンターの実行
+flake8 src/
+```
+
+## ライセンス
+
+MIT License
+
+## 作者
+
+NekoChan9382 / bit

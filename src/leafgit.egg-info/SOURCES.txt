@@ -1,0 +1,10 @@
+LICENSE
+README.md
+pyproject.toml
+setup.py
+src/leafgit.egg-info/PKG-INFO
+src/leafgit.egg-info/SOURCES.txt
+src/leafgit.egg-info/dependency_links.txt
+src/leafgit.egg-info/entry_points.txt
+src/leafgit.egg-info/requires.txt
+src/leafgit.egg-info/top_level.txt
