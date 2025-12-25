@@ -16,6 +16,14 @@ class GitOperations:
             description="リポジトリのクローンを実行",
         )
 
+    def stage_files(self, file_paths):
+        self.repo.index.add(file_paths)
+        return CommandResult(
+            success=True,
+            command=f"git add {' '.join(file_paths)}",
+            description="ファイルをステージングエリアに追加",
+        )
+
     def commit_changes(self, message):
         self.repo.index.commit(message)
         return CommandResult(
@@ -30,4 +38,38 @@ class GitOperations:
             success=True,
             command=f"git push {remote} {branch}",
             description="変更をリモートリポジトリに反映",
+        )
+
+    def pull_changes(self, remote="origin", branch="main"):
+        self.repo.git.pull(remote, branch)
+        return CommandResult(
+            success=True,
+            command=f"git pull {remote} {branch}",
+            description="リモートリポジトリから変更を取得",
+        )
+
+    # branches
+
+    def create_branch(self, branch_name):
+        self.repo.git.checkout("-b", branch_name)
+        return CommandResult(
+            success=True,
+            command=f"git checkout -b {branch_name}",
+            description="新しいブランチを作成",
+        )
+
+    def switch_branch(self, branch_name):
+        self.repo.git.checkout(branch_name)
+        return CommandResult(
+            success=True,
+            command=f"git checkout {branch_name}",
+            description="ブランチを切り替え",
+        )
+
+    def delete_branch(self, branch_name):
+        self.repo.git.branch("-d", branch_name)
+        return CommandResult(
+            success=True,
+            command=f"git branch -d {branch_name}",
+            description="ブランチを削除",
         )
