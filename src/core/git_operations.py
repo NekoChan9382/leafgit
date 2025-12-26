@@ -3,18 +3,34 @@ from models import CommandResult
 
 
 class GitOperations:
-    def __init__(self, repo_path):
-        self.repo = Repo(repo_path)
+    def __init__(self, repo):
+        """
+        直接呼ばず、クラスメソッド（open_repository等）を使う
+
+        Args:
+            repo: GitPythonのRepoオブジェクト
+        """
+        self.repo = repo
         if self.repo.bare:
             raise Exception("Repository is bare")
 
-    def clone_repository(self, repo_url, destination):
-        self.repo.git.clone(repo_url, destination)
-        return CommandResult(
-            success=True,
-            command=f"git clone {repo_url} {destination}",
-            description="リポジトリのクローンを実行",
-        )
+    @classmethod
+    def open_repository(cls, repo_path):
+        """既存リポジトリを開く"""
+        repo = Repo(repo_path)
+        return cls(repo)  # cls は GitOperations クラス自身
+
+    @classmethod
+    def init_repository(cls, repo_path):
+        """新規リポジトリを作成"""
+        repo = Repo.init(repo_path)
+        return cls(repo)
+
+    @classmethod
+    def clone_repository(cls, repo_url, destination):
+        """リモートリポジトリをクローン"""
+        repo = Repo.clone_from(repo_url, destination)
+        return cls(repo)
 
     def stage_files(self, file_paths):
         self.repo.index.add(file_paths)
