@@ -5,7 +5,7 @@ from models import CommandResult
 class GitOperations:
     def __init__(self, repo):
         """
-        直接呼ばず、クラスメソッド（open_repository等）を使う
+        直接呼ばず、クラスメソッド(open_repository等)を使う
 
         Args:
             repo: GitPythonのRepoオブジェクト
@@ -88,4 +88,15 @@ class GitOperations:
             success=True,
             command=f"git branch -d {branch_name}",
             description="ブランチを削除",
+        )
+
+    def merge_branch(self, source_branch, target_branch=None):
+        if target_branch is None:
+            target_branch = self.repo.active_branch.name
+        self.repo.git.checkout(target_branch)
+        self.repo.git.merge(source_branch)
+        return CommandResult(
+            success=True,
+            command=f"git checkout {target_branch} && git merge {source_branch}",
+            description="ブランチをマージ",
         )
