@@ -1,4 +1,5 @@
 from git import Repo
+from git.exc import GitCommandError
 from models import CommandResult
 
 
@@ -13,6 +14,27 @@ class GitOperations:
         self.repo = repo
         if self.repo.bare:
             raise Exception("Repository is bare")
+
+    def execute_command(self, command, *args):
+        """汎用的にGitコマンドを実行する"""
+        git_cmd = getattr(self.repo.git, command)
+        try:
+            output = git_cmd(*args)
+            return output
+        except GitCommandError as e:
+            return CommandResult(
+                success=False,
+                command=command,
+                description="失敗しました",
+                error_message=self._parse_git_error(e),
+            )
+        except Exception as e:
+            return CommandResult(
+                success=False,
+                command=command,
+                description="失敗しました",
+                error_message=str(e),
+            )
 
     @classmethod
     def open_repository(cls, repo_path):
