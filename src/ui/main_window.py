@@ -1,5 +1,6 @@
 """メインウィンドウの実装"""
 
+from datetime import datetime
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -20,16 +21,23 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QTabWidget,
+    QFileDialog,
+    QMessageBox,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
+
+from core.app_controller import AppController
+from models import CommandResult
 
 
 class MainWindow(QMainWindow):
     """LeafGitのメインウィンドウ"""
 
-    def __init__(self):
+    def __init__(self, controller: AppController):
         super().__init__()
+        self.controller = controller
+        
         self.setWindowTitle("LeafGit")
         self.setMinimumSize(1000, 700)
 
@@ -37,6 +45,17 @@ class MainWindow(QMainWindow):
         self._setup_toolbar()
         self._setup_central_widget()
         self._setup_status_bar()
+        self._connect_signals()
+
+    def _connect_signals(self):
+        """Controllerのシグナルを接続"""
+        # Controller -> UI
+        self.controller.repository_opened.connect(self._on_repository_opened)
+        self.controller.repository_closed.connect(self._on_repository_closed)
+        self.controller.command_executed.connect(self._on_command_executed)
+        self.controller.files_changed.connect(self._on_files_changed)
+        self.controller.branch_changed.connect(self._on_branch_changed)
+        self.controller.error_occurred.connect(self._on_error_occurred)
 
     def _setup_menu_bar(self):
         """メニューバーの設定"""
@@ -47,10 +66,12 @@ class MainWindow(QMainWindow):
 
         open_repo_action = QAction("リポジトリを開く(&O)", self)
         open_repo_action.setShortcut("Ctrl+O")
+        open_repo_action.triggered.connect(self._on_open_repository)
         file_menu.addAction(open_repo_action)
 
         init_repo_action = QAction("新規リポジトリ(&N)", self)
         init_repo_action.setShortcut("Ctrl+N")
+        init_repo_action.triggered.connect(self._on_init_repository)
         file_menu.addAction(init_repo_action)
 
         clone_repo_action = QAction("クローン(&C)", self)
@@ -72,14 +93,17 @@ class MainWindow(QMainWindow):
 
         commit_action = QAction("コミット(&C)", self)
         commit_action.setShortcut("Ctrl+Return")
+        commit_action.triggered.connect(self._on_commit)
         git_menu.addAction(commit_action)
 
         push_action = QAction("プッシュ(&P)", self)
         push_action.setShortcut("Ctrl+Shift+P")
+        push_action.triggered.connect(self._on_push)
         git_menu.addAction(push_action)
 
         pull_action = QAction("プル(&L)", self)
         pull_action.setShortcut("Ctrl+Shift+L")
+        pull_action.triggered.connect(self._on_pull)
         git_menu.addAction(pull_action)
 
         git_menu.addSeparator()
@@ -288,10 +312,12 @@ class MainWindow(QMainWindow):
         button_layout.addStretch()
 
         self.stage_button = QPushButton("選択をステージ")
+        self.stage_button.clicked.connect(self._on_stage_files)
         button_layout.addWidget(self.stage_button)
 
         self.commit_button = QPushButton("コミット")
         self.commit_button.setDefault(True)
+        self.commit_button.clicked.connect(self._on_commit)
         button_layout.addWidget(self.commit_button)
 
         commit_layout.addLayout(button_layout)
@@ -336,3 +362,149 @@ class MainWindow(QMainWindow):
         # ブランチ情報
         self.branch_label = QLabel("ブランチ: -")
         status_bar.addPermanentWidget(self.branch_label)
+
+    # ==================== アクションハンドラ ====================
+
+    def _on_open_repository(self):
+        """リポジトリを開く"""
+        path = QFileDialog.getExistingDirectory(
+            self, "リポジトリを選択", "", QFileDialog.Option.ShowDirsOnly
+        )
+        if path:
+            result = self.controller.open_repository(path)
+            if not result.success:
+                QMessageBox.warning(self, "エラー", result.error_message)
+
+    def _on_init_repository(self):
+        """新規リポジトリを作成"""
+        path = QFileDialog.getExistingDirectory(
+            self, "リポジトリを作成する場所を選択", "", QFileDialog.Option.ShowDirsOnly
+        )
+        if path:
+            result = self.controller.init_repository(path)
+            if not result.success:
+                QMessageBox.warning(self, "エラー", result.error_message)
+
+    def _on_commit(self):
+        """コミットを実行"""
+        message = self.commit_message.toPlainText().strip()
+        if not message:
+            QMessageBox.warning(self, "エラー", "コミットメッセージを入力してください")
+            return
+
+        result = self.controller.commit(message)
+        if result.success:
+            self.commit_message.clear()
+
+    def _on_push(self):
+        """プッシュを実行"""
+        self.controller.push()
+
+    def _on_pull(self):
+        """プルを実行"""
+        self.controller.pull()
+
+    def _on_stage_files(self):
+        """選択ファイルをステージング"""
+        selected_items = self.file_tree.selectedItems()
+        if not selected_items:
+            QMessageBox.information(self, "情報", "ステージするファイルを選択してください")
+            return
+
+        file_paths = [item.text(0) for item in selected_items]
+        self.controller.stage_files(file_paths)
+
+    # ==================== シグナルスロット ====================
+
+    def _on_repository_opened(self, path: str):
+        """リポジトリが開かれた時の処理"""
+        self.repo_label.setText(f"リポジトリ: {path}")
+        self.setWindowTitle(f"LeafGit - {path}")
+        self._update_file_tree()
+        self._update_branch_list()
+
+    def _on_repository_closed(self):
+        """リポジトリが閉じられた時の処理"""
+        self.repo_label.setText("リポジトリ: 未選択")
+        self.branch_label.setText("ブランチ: -")
+        self.setWindowTitle("LeafGit")
+        self.file_tree.clear()
+        self.branch_tree.clear()
+
+    def _on_command_executed(self, result: CommandResult):
+        """コマンドが実行された時の処理"""
+        self._add_to_command_history(result)
+
+    def _on_files_changed(self, files: list):
+        """ファイル状態が変化した時の処理"""
+        self._update_file_tree()
+
+    def _on_branch_changed(self, branch_name: str):
+        """ブランチが変化した時の処理"""
+        self.branch_label.setText(f"ブランチ: {branch_name}")
+        self._update_branch_list()
+
+    def _on_error_occurred(self, error_message: str):
+        """エラーが発生した時の処理"""
+        QMessageBox.warning(self, "エラー", error_message)
+
+    # ==================== UI更新メソッド ====================
+
+    def _add_to_command_history(self, result: CommandResult):
+        """コマンド履歴に追加"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        status_icon = "✓" if result.success else "✗"
+        
+        # コマンド行を作成
+        line = f"[{timestamp}] {status_icon} {result.command}"
+        
+        # 履歴に追加
+        self.command_history.appendPlainText(line)
+        
+        # エラーメッセージがあれば追加
+        if result.error_message:
+            self.command_history.appendPlainText(f"    └─ {result.error_message}")
+
+    def _update_file_tree(self):
+        """ファイルツリーを更新"""
+        self.file_tree.clear()
+        
+        if not self.controller.is_repository_open:
+            return
+
+        files = self.controller.get_changed_files()
+
+        # ステージされたファイル
+        for file_path in files["staged"]:
+            item = QTreeWidgetItem([file_path, "Staged"])
+            item.setForeground(1, Qt.GlobalColor.green)
+            self.file_tree.addTopLevelItem(item)
+
+        # ステージされていない変更
+        for file_path in files["unstaged"]:
+            item = QTreeWidgetItem([file_path, "Modified"])
+            item.setForeground(1, Qt.GlobalColor.yellow)
+            self.file_tree.addTopLevelItem(item)
+
+        # 未追跡ファイル
+        for file_path in files["untracked"]:
+            item = QTreeWidgetItem([file_path, "Untracked"])
+            item.setForeground(1, Qt.GlobalColor.red)
+            self.file_tree.addTopLevelItem(item)
+
+    def _update_branch_list(self):
+        """ブランチ一覧を更新"""
+        self.branch_tree.clear()
+        
+        if not self.controller.is_repository_open:
+            return
+
+        current_branch = self.controller.current_branch
+        branches = self.controller.get_branches()
+
+        for branch in branches:
+            prefix = "● " if branch == current_branch else "  "
+            item = QTreeWidgetItem([f"{prefix}{branch}"])
+            if branch == current_branch:
+                item.setForeground(0, Qt.GlobalColor.green)
+            self.branch_tree.addTopLevelItem(item)
