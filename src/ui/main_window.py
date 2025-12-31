@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
     def __init__(self, controller: AppController):
         super().__init__()
         self.controller = controller
-        
+
         self.setWindowTitle("LeafGit")
         self.setMinimumSize(1000, 700)
 
@@ -408,7 +408,9 @@ class MainWindow(QMainWindow):
         """選択ファイルをステージング"""
         selected_items = self.file_tree.selectedItems()
         if not selected_items:
-            QMessageBox.information(self, "情報", "ステージするファイルを選択してください")
+            QMessageBox.information(
+                self, "情報", "ステージするファイルを選択してください"
+            )
             return
 
         file_paths = [item.text(0) for item in selected_items]
@@ -454,13 +456,13 @@ class MainWindow(QMainWindow):
         """コマンド履歴に追加"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         status_icon = "✓" if result.success else "✗"
-        
+
         # コマンド行を作成
         line = f"[{timestamp}] {status_icon} {result.command}"
-        
+
         # 履歴に追加
         self.command_history.appendPlainText(line)
-        
+
         # エラーメッセージがあれば追加
         if result.error_message:
             self.command_history.appendPlainText(f"    └─ {result.error_message}")
@@ -468,11 +470,12 @@ class MainWindow(QMainWindow):
     def _update_file_tree(self):
         """ファイルツリーを更新"""
         self.file_tree.clear()
-        
+
         if not self.controller.is_repository_open:
             return
 
         files = self.controller.get_changed_files()
+        print(files)
 
         # ステージされたファイル
         for file_path in files["staged"]:
@@ -495,7 +498,7 @@ class MainWindow(QMainWindow):
     def _update_branch_list(self):
         """ブランチ一覧を更新"""
         self.branch_tree.clear()
-        
+
         if not self.controller.is_repository_open:
             return
 

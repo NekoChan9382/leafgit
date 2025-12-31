@@ -165,6 +165,41 @@ class GitOperations:
 
     # branches
 
+    def get_branches(self):
+        """ローカルブランチの一覧を取得"""
+        try:
+            branches = [branch.name for branch in self.repo.branches]
+            return branches
+        except Exception as e:
+            print(e)
+            return []
+
+    def get_current_branch(self):
+        """
+        現在のブランチ名を取得
+
+        Returns:
+            str or None: ブランチ名。HEAD未確定（初回コミット前）の場合はNone
+        """
+        try:
+            # HEADが存在するか確認
+            if self.repo.head.is_valid():
+                return self.repo.active_branch.name
+            else:
+                # 初回コミット前: HEADは存在するがコミットを指していない
+                # この場合でもブランチ名は取得可能な場合がある
+                try:
+                    return self.repo.active_branch.name
+                except TypeError:
+                    # detached HEAD 状態
+                    return None
+        except TypeError:
+            # detached HEAD 状態
+            return None
+        except Exception as e:
+            print(f"get_current_branch error: {e}")
+            return None
+
     def create_branch(self, branch_name):
         cmd = f"git checkout -b {branch_name}"
         description = "新しいブランチを作成"
@@ -219,3 +254,35 @@ class GitOperations:
             )
         except Exception as e:
             return self._handle_error(e, cmd, description)
+
+    # files
+
+    def get_changed_files(self):
+        """
+        変更されたファイルを取得
+
+        Returns:
+            dict: ステージされたファイル、ステージされていないファイル、未追跡ファイルのリスト
+        """
+        try:
+            # HEADが有効かチェック（初回コミット前は無効）
+            if self.repo.head.is_valid():
+                staged = [item.a_path for item in self.repo.index.diff("HEAD")]
+            else:
+                # 初回コミット前: インデックスに追加されたファイルをstagedとみなす
+                staged = [entry[0] for entry in self.repo.index.entries.keys()]
+
+            unstaged = [item.a_path for item in self.repo.index.diff(None)]
+            untracked = self.repo.untracked_files
+            return {
+                "staged": staged,
+                "unstaged": unstaged,
+                "untracked": untracked,
+            }
+        except Exception as e:
+            print(f"get_changed_files error: {e}")
+            return {
+                "staged": [],
+                "unstaged": [],
+                "untracked": [],
+            }
