@@ -1,6 +1,9 @@
 from git import Repo
 from git.exc import GitCommandError
 from models import CommandResult
+from utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class GitOperations:
@@ -171,7 +174,7 @@ class GitOperations:
             branches = [branch.name for branch in self.repo.branches]
             return branches
         except Exception as e:
-            print(e)
+            logger.warning(f"ブランチ一覧の取得に失敗: {e}")
             return []
 
     def get_current_branch(self):
@@ -197,7 +200,7 @@ class GitOperations:
             # detached HEAD 状態
             return None
         except Exception as e:
-            print(f"get_current_branch error: {e}")
+            logger.warning(f"現在のブランチ取得に失敗: {e}")
             return None
 
     def create_branch(self, branch_name):
@@ -280,7 +283,7 @@ class GitOperations:
                 "untracked": untracked,
             }
         except Exception as e:
-            print(f"get_changed_files error: {e}")
+            logger.warning(f"変更ファイルの取得に失敗: {e}")
             return {
                 "staged": [],
                 "unstaged": [],
