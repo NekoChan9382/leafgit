@@ -80,6 +80,11 @@ class MainWindow(QMainWindow):
 
         file_menu.addSeparator()
 
+        update_action = QAction("更新(&R)", self)
+        update_action.setShortcut("Ctrl+R")
+        update_action.triggered.connect(self._update_file_tree)
+        file_menu.addAction(update_action)
+
         exit_action = QAction("終了(&X)", self)
         exit_action.setShortcut("Ctrl+Q")
         exit_action.triggered.connect(self.close)
