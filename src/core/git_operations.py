@@ -127,6 +127,25 @@ class GitOperations:
         except Exception as e:
             return self._handle_error(e, cmd, description)
 
+    def unstage_files(self, file_paths):
+        """ファイルをアンステージ"""
+        cmd = f"git reset HEAD {' '.join(file_paths)}"
+        description = "ファイルをアンステージ"
+        try:
+            # HEADが有効かチェック（初回コミット前）
+            if self.repo.head.is_valid():
+                self.repo.index.reset(paths=file_paths)
+            else:
+                # 初回コミット前: インデックスから削除
+                self.repo.index.remove(file_paths, working_tree=True)
+            return CommandResult(
+                success=True,
+                command=cmd,
+                description=description,
+            )
+        except Exception as e:
+            return self._handle_error(e, cmd, description)
+
     def commit_changes(self, message):
         cmd = f"git commit -m '{message}'"
         description = "変更を保存"
@@ -268,15 +287,30 @@ class GitOperations:
             dict: ステージされたファイル、ステージされていないファイル、未追跡ファイルのリスト
         """
         try:
+            staged = []
+            unstaged = []
+
             # HEADが有効かチェック（初回コミット前は無効）
             if self.repo.head.is_valid():
-                staged = [item.a_path for item in self.repo.index.diff("HEAD")]
+                # ステージされた変更 (HEAD vs Index)
+                for item in self.repo.index.diff("HEAD"):
+                    # 削除されたファイルはa_path、追加/変更されたファイルもa_path
+                    path = item.a_path if item.a_path else item.b_path
+                    if path:
+                        staged.append(path)
             else:
                 # 初回コミット前: インデックスに追加されたファイルをstagedとみなす
                 staged = [entry[0] for entry in self.repo.index.entries.keys()]
 
-            unstaged = [item.a_path for item in self.repo.index.diff(None)]
+            # ステージされていない変更 (Index vs Working Tree)
+            for item in self.repo.index.diff(None):
+                # 削除されたファイルはa_path、変更されたファイルもa_path
+                path = item.a_path if item.a_path else item.b_path
+                if path:
+                    unstaged.append(path)
+
             untracked = self.repo.untracked_files
+
             return {
                 "staged": staged,
                 "unstaged": unstaged,
