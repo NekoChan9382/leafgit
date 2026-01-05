@@ -118,7 +118,28 @@ class GitOperations:
         cmd = f"git add {' '.join(file_paths)}"
         description = "ファイルをステージングエリアに追加"
         try:
-            self.repo.index.add(file_paths)
+            import os
+
+            # ファイルの存在確認
+            existing_files = []
+            deleted_files = []
+
+            repo_path = self.repo.working_tree_dir
+            for file_path in file_paths:
+                full_path = os.path.join(repo_path, file_path)
+                if os.path.exists(full_path):
+                    existing_files.append(file_path)
+                else:
+                    deleted_files.append(file_path)
+
+            # 存在するファイル: 通常のadd
+            if existing_files:
+                self.repo.index.add(existing_files)
+
+            # 削除されたファイル: removeでステージング
+            if deleted_files:
+                self.repo.index.remove(deleted_files, working_tree=True)
+
             return CommandResult(
                 success=True,
                 command=cmd,
@@ -284,11 +305,12 @@ class GitOperations:
         変更されたファイルを取得
 
         Returns:
-            dict: ステージされたファイル、ステージされていないファイル、未追跡ファイルのリスト
+            dict: ステージされたファイル、ステージされていないファイル、未追跡ファイル、削除されたファイルのリスト
         """
         try:
             staged = []
             unstaged = []
+            deleted = []
 
             # HEADが有効かチェック（初回コミット前は無効）
             if self.repo.head.is_valid():
@@ -307,7 +329,10 @@ class GitOperations:
                 # 削除されたファイルはa_path、変更されたファイルもa_path
                 path = item.a_path if item.a_path else item.b_path
                 if path:
-                    unstaged.append(path)
+                    if item.change_type == "D":
+                        deleted.append(path)
+                    else:
+                        unstaged.append(path)
 
             untracked = self.repo.untracked_files
 
@@ -315,6 +340,7 @@ class GitOperations:
                 "staged": staged,
                 "unstaged": unstaged,
                 "untracked": untracked,
+                "deleted": deleted,
             }
         except Exception as e:
             logger.warning(f"変更ファイルの取得に失敗: {e}")
@@ -322,4 +348,5 @@ class GitOperations:
                 "staged": [],
                 "unstaged": [],
                 "untracked": [],
+                "deleted": [],
             }

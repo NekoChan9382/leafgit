@@ -545,6 +545,17 @@ class MainWindow(QMainWindow):
             list_item = QListWidgetItem(file_path)
             self.unstaged_list.addItem(list_item)
 
+        # 削除されたファイル
+        for file_path in files["deleted"]:
+            # 左サイドバーのツリー
+            item = QTreeWidgetItem([file_path, "Deleted"])
+            item.setForeground(1, Qt.GlobalColor.darkRed)
+            self.file_tree.addTopLevelItem(item)
+
+            # Unstagedリスト
+            list_item = QListWidgetItem(file_path)
+            self.unstaged_list.addItem(list_item)
+
     def _update_branch_list(self):
         """ブランチ一覧を更新"""
         self.branch_tree.clear()
@@ -575,7 +586,7 @@ class MainWindow(QMainWindow):
         result = self.controller.stage_files(file_paths)
 
         if result.success:
-            self.status_bar.showMessage(
+            self.statusBar.showMessage(
                 f"✓ {len(file_paths)}個のファイルをステージしました", 3000
             )
         else:
@@ -594,7 +605,7 @@ class MainWindow(QMainWindow):
         result = self.controller.unstage_files(file_paths)
 
         if result.success:
-            self.status_bar.showMessage(
+            self.statusBar.showMessage(
                 f"✓ {len(file_paths)}個のファイルをアンステージしました", 3000
             )
         else:
