@@ -23,6 +23,8 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QFileDialog,
     QMessageBox,
+    QListWidget,
+    QListWidgetItem,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
@@ -283,21 +285,47 @@ class MainWindow(QMainWindow):
         # Unstagedタブ
         unstaged_widget = QWidget()
         unstaged_layout = QVBoxLayout(unstaged_widget)
-        self.unstaged_diff = QPlainTextEdit()
-        self.unstaged_diff.setReadOnly(True)
-        self.unstaged_diff.setPlaceholderText(
-            "ステージされていない変更がここに表示されます"
+        unstaged_layout.setContentsMargins(5, 5, 5, 5)
+
+        unstaged_label = QLabel("ステージされていないファイル")
+        unstaged_layout.addWidget(unstaged_label)
+
+        self.unstaged_list = QListWidget()
+        self.unstaged_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.unstaged_list.customContextMenuRequested.connect(
+            self._show_unstaged_context_menu
         )
-        unstaged_layout.addWidget(self.unstaged_diff)
+        self.unstaged_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        unstaged_layout.addWidget(self.unstaged_list)
+
+        # Stageボタン
+        stage_button = QPushButton("Stage Selected")
+        stage_button.clicked.connect(self._stage_selected_files)
+        unstaged_layout.addWidget(stage_button)
+
         diff_tabs.addTab(unstaged_widget, "Unstaged")
 
         # Stagedタブ
         staged_widget = QWidget()
         staged_layout = QVBoxLayout(staged_widget)
-        self.staged_diff = QPlainTextEdit()
-        self.staged_diff.setReadOnly(True)
-        self.staged_diff.setPlaceholderText("ステージされた変更がここに表示されます")
-        staged_layout.addWidget(self.staged_diff)
+        staged_layout.setContentsMargins(5, 5, 5, 5)
+
+        staged_label = QLabel("ステージされたファイル")
+        staged_layout.addWidget(staged_label)
+
+        self.staged_list = QListWidget()
+        self.staged_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.staged_list.customContextMenuRequested.connect(
+            self._show_staged_context_menu
+        )
+        self.staged_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        staged_layout.addWidget(self.staged_list)
+
+        # Unstageボタン
+        unstage_button = QPushButton("Unstage Selected")
+        unstage_button.clicked.connect(self._unstage_selected_files)
+        staged_layout.addWidget(unstage_button)
+
         diff_tabs.addTab(staged_widget, "Staged")
 
         layout.addWidget(diff_tabs, stretch=1)
@@ -475,6 +503,8 @@ class MainWindow(QMainWindow):
     def _update_file_tree(self):
         """ファイルツリーを更新"""
         self.file_tree.clear()
+        self.unstaged_list.clear()
+        self.staged_list.clear()
 
         if not self.controller.is_repository_open:
             return
@@ -484,21 +514,36 @@ class MainWindow(QMainWindow):
 
         # ステージされたファイル
         for file_path in files["staged"]:
+            # 左サイドバーのツリー
             item = QTreeWidgetItem([file_path, "Staged"])
             item.setForeground(1, Qt.GlobalColor.green)
             self.file_tree.addTopLevelItem(item)
 
+            # Stagedリスト
+            list_item = QListWidgetItem(file_path)
+            self.staged_list.addItem(list_item)
+
         # ステージされていない変更
         for file_path in files["unstaged"]:
+            # 左サイドバーのツリー
             item = QTreeWidgetItem([file_path, "Modified"])
             item.setForeground(1, Qt.GlobalColor.yellow)
             self.file_tree.addTopLevelItem(item)
 
+            # Unstagedリスト
+            list_item = QListWidgetItem(file_path)
+            self.unstaged_list.addItem(list_item)
+
         # 未追跡ファイル
         for file_path in files["untracked"]:
+            # 左サイドバーのツリー
             item = QTreeWidgetItem([file_path, "Untracked"])
             item.setForeground(1, Qt.GlobalColor.red)
             self.file_tree.addTopLevelItem(item)
+
+            # Unstagedリスト
+            list_item = QListWidgetItem(file_path)
+            self.unstaged_list.addItem(list_item)
 
     def _update_branch_list(self):
         """ブランチ一覧を更新"""
@@ -516,3 +561,65 @@ class MainWindow(QMainWindow):
             if branch == current_branch:
                 item.setForeground(0, Qt.GlobalColor.green)
             self.branch_tree.addTopLevelItem(item)
+
+    # ==================== ステージング操作 ====================
+
+    def _stage_selected_files(self):
+        """選択されたファイルをステージング"""
+        selected_items = self.unstaged_list.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "警告", "ファイルが選択されていません")
+            return
+
+        file_paths = [item.text() for item in selected_items]
+        result = self.controller.stage_files(file_paths)
+
+        if result.success:
+            self.status_bar.showMessage(
+                f"✓ {len(file_paths)}個のファイルをステージしました", 3000
+            )
+        else:
+            QMessageBox.critical(
+                self, "エラー", f"ステージに失敗しました\n{result.error_message}"
+            )
+
+    def _unstage_selected_files(self):
+        """選択されたファイルをアンステージ"""
+        selected_items = self.staged_list.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "警告", "ファイルが選択されていません")
+            return
+
+        file_paths = [item.text() for item in selected_items]
+        result = self.controller.unstage_files(file_paths)
+
+        if result.success:
+            self.status_bar.showMessage(
+                f"✓ {len(file_paths)}個のファイルをアンステージしました", 3000
+            )
+        else:
+            QMessageBox.critical(
+                self, "エラー", f"アンステージに失敗しました\n{result.error_message}"
+            )
+
+    def _show_unstaged_context_menu(self, position):
+        """Unstagedリストのコンテキストメニューを表示"""
+        if not self.unstaged_list.selectedItems():
+            return
+
+        menu = QMenu(self)
+        stage_action = menu.addAction("Stage")
+        stage_action.triggered.connect(self._stage_selected_files)
+
+        menu.exec(self.unstaged_list.mapToGlobal(position))
+
+    def _show_staged_context_menu(self, position):
+        """Stagedリストのコンテキストメニューを表示"""
+        if not self.staged_list.selectedItems():
+            return
+
+        menu = QMenu(self)
+        unstage_action = menu.addAction("Unstage")
+        unstage_action.triggered.connect(self._unstage_selected_files)
+
+        menu.exec(self.staged_list.mapToGlobal(position))
