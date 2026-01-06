@@ -31,6 +31,9 @@ from PySide6.QtGui import QAction
 
 from core.app_controller import AppController
 from models import CommandResult
+from utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class MainWindow(QMainWindow):
@@ -238,6 +241,11 @@ class MainWindow(QMainWindow):
         self.branch_tree = QTreeWidget()
         self.branch_tree.setHeaderHidden(True)
         self.branch_tree.setRootIsDecorated(False)
+
+        self.branch_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.branch_tree.customContextMenuRequested.connect(
+            self._show_branch_context_menu
+        )
 
         # サンプルデータ
         main_branch = QTreeWidgetItem(["● main"])
@@ -453,6 +461,30 @@ class MainWindow(QMainWindow):
         file_paths = [item.text(0) for item in selected_items]
         self.controller.stage_files(file_paths)
 
+    def _on_checkout_branch(self):
+        """選択されたブランチに移動"""
+        selected_items = self.branch_tree.selectedItems()
+        if not selected_items:
+            QMessageBox.information(self, "情報", "移動するブランチを選択してください")
+            return
+
+        branch_name = selected_items[0].text(0).strip("● ").strip()
+        result = self.controller.switch_branch(branch_name)
+        if not result.success:
+            QMessageBox.warning(self, "エラー", result.error_message)
+
+    def _on_delete_branch(self):
+        """選択されたブランチを削除"""
+        selected_items = self.branch_tree.selectedItems()
+        if not selected_items:
+            QMessageBox.information(self, "情報", "削除するブランチを選択してください")
+            return
+
+        branch_name = selected_items[0].text(0).strip("● ").strip()
+        result = self.controller.delete_branch(branch_name)
+        if not result.success:
+            QMessageBox.warning(self, "エラー", result.error_message)
+
     # ==================== シグナルスロット ====================
 
     def _on_repository_opened(self, path: str):
@@ -514,7 +546,6 @@ class MainWindow(QMainWindow):
             return
 
         files = self.controller.get_changed_files()
-        print(files)
 
         # ステージされたファイル
         for file_path in files["staged"]:
@@ -638,3 +669,18 @@ class MainWindow(QMainWindow):
         unstage_action.triggered.connect(self._unstage_selected_files)
 
         menu.exec(self.staged_list.mapToGlobal(position))
+
+    def _show_branch_context_menu(self, position):
+        """ブランチ一覧のコンテキストメニューを表示"""
+        selected_item = self.branch_tree.selectedItems()
+        if not selected_item:
+            return
+
+        menu = QMenu(self)
+        checkout_action = menu.addAction("移動")
+        delete_action = menu.addAction("削除")
+
+        checkout_action.triggered.connect(self._on_checkout_branch)
+        delete_action.triggered.connect(self._on_delete_branch)
+
+        menu.exec(self.branch_tree.mapToGlobal(position))
