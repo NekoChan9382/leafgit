@@ -392,6 +392,10 @@ class MainWindow(QMainWindow):
         self.repo_label = QLabel("リポジトリ: 未選択")
         status_bar.addWidget(self.repo_label)
 
+        # 操作情報
+        self.operation_label = QLabel("")
+        status_bar.addWidget(self.operation_label)
+
         # ブランチ情報
         self.branch_label = QLabel("ブランチ: -")
         status_bar.addPermanentWidget(self.branch_label)
@@ -586,8 +590,8 @@ class MainWindow(QMainWindow):
         result = self.controller.stage_files(file_paths)
 
         if result.success:
-            self.statusBar.showMessage(
-                f"✓ {len(file_paths)}個のファイルをステージしました", 3000
+            self.operation_label.setText(
+                f"✓ {len(file_paths)}個のファイルをステージしました"
             )
         else:
             QMessageBox.critical(
@@ -605,8 +609,8 @@ class MainWindow(QMainWindow):
         result = self.controller.unstage_files(file_paths)
 
         if result.success:
-            self.statusBar.showMessage(
-                f"✓ {len(file_paths)}個のファイルをアンステージしました", 3000
+            self.operation_label.setText(
+                f"✓ {len(file_paths)}個のファイルをアンステージしました"
             )
         else:
             QMessageBox.critical(
