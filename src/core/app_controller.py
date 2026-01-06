@@ -223,6 +223,8 @@ class AppController(QObject):
 
         result = self._git_ops.delete_branch(branch_name)
         self.command_executed.emit(result)
+        if result.success:
+            self.branch_changed.emit(self.current_branch or "")
         return result
 
     def merge_branch(self, source_branch: str) -> CommandResult:

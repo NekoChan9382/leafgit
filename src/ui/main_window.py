@@ -601,10 +601,6 @@ class MainWindow(QMainWindow):
         current_branch = self.controller.current_branch
         branches = self.controller.get_branches()
 
-        logger.debug(
-            f"Updating branch list: current={current_branch}, branches={branches}"
-        )
-
         for branch in branches:
             prefix = "● " if branch == current_branch else "  "
             item = QTreeWidgetItem([f"{prefix}{branch}"])
