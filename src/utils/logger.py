@@ -16,12 +16,13 @@ def setup_logger(name: str = "leafgit", level: int = logging.INFO) -> logging.Lo
     Returns:
         logging.Logger: 設定されたロガー
     """
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
+    # ルートロガーを設定（全てのloggerに適用される）
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
 
     # 既にハンドラが設定されている場合はスキップ
-    if logger.handlers:
-        return logger
+    if root_logger.handlers:
+        return logging.getLogger(name)
 
     # コンソールハンドラ
     console_handler = logging.StreamHandler(sys.stdout)
@@ -34,9 +35,15 @@ def setup_logger(name: str = "leafgit", level: int = logging.INFO) -> logging.Lo
     )
     console_handler.setFormatter(formatter)
 
-    logger.addHandler(console_handler)
+    root_logger.addHandler(console_handler)
 
-    return logger
+    # GitPythonのログを抑制（WARNINGレベル以上のみ表示）
+    logging.getLogger("git").setLevel(logging.WARNING)
+    logging.getLogger("git.cmd").setLevel(logging.WARNING)
+    logging.getLogger("git.repo").setLevel(logging.WARNING)
+
+    # 指定された名前のロガーを返す
+    return logging.getLogger(name)
 
 
 def get_logger(name: str = "leafgit") -> logging.Logger:
