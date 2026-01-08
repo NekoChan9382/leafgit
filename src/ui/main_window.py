@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QListWidget,
     QListWidgetItem,
+    QInputDialog,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
@@ -119,7 +120,9 @@ class MainWindow(QMainWindow):
         git_menu.addSeparator()
 
         branch_menu = git_menu.addMenu("ブランチ(&B)")
-        branch_menu.addAction(QAction("新規ブランチ", self))
+        create_branch_action = QAction("新規ブランチ(&N)", self)
+        create_branch_action.triggered.connect(self._on_create_branch)
+        branch_menu.addAction(create_branch_action)
         branch_menu.addAction(QAction("ブランチを切り替え", self))
         branch_menu.addAction(QAction("ブランチを削除", self))
 
@@ -460,6 +463,16 @@ class MainWindow(QMainWindow):
 
         file_paths = [item.text(0) for item in selected_items]
         self.controller.stage_files(file_paths)
+
+    def _on_create_branch(self):
+        """新規ブランチを作成"""
+        branch_name, ok = QInputDialog.getText(
+            self, "新規ブランチ", "ブランチ名を入力:"
+        )
+        if ok and branch_name:
+            result = self.controller.create_branch(branch_name)
+            if not result.success:
+                QMessageBox.warning(self, "エラー", result.error_message)
 
     def _on_checkout_branch(self):
         """選択されたブランチに移動"""
