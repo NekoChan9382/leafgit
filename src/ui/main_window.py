@@ -374,8 +374,38 @@ class MainWindow(QMainWindow):
         panel = QGroupBox("コマンド履歴")
         layout = QVBoxLayout(panel)
 
+        # ツールバー
+        toolbar = QHBoxLayout()
+        toolbar.setContentsMargins(0, 0, 0, 5)
+
+        # クリアボタン
+        clear_button = QPushButton("クリア")
+        clear_button.clicked.connect(self._clear_command_history)
+        toolbar.addWidget(clear_button)
+
+        # コピーボタン
+        copy_button = QPushButton("全体をコピー")
+        copy_button.clicked.connect(self._copy_command_history)
+        toolbar.addWidget(copy_button)
+
+        toolbar.addStretch()
+
+        # 履歴件数表示
+        self.history_count_label = QLabel("0 件")
+        toolbar.addWidget(self.history_count_label)
+
+        layout.addLayout(toolbar)
+
+        # 履歴表示エリア
         self.command_history = QPlainTextEdit()
         self.command_history.setReadOnly(True)
+        self.command_history.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
+        self.command_history.customContextMenuRequested.connect(
+            self._show_history_context_menu
+        )
+        self.command_history.setMaximumBlockCount(50)  # 最大50行
         self.command_history.setStyleSheet(
             """
             QPlainTextEdit {
@@ -383,12 +413,20 @@ class MainWindow(QMainWindow):
                 color: #cccccc;
                 font-family: monospace;
                 font-size: 12px;
+                padding: 5px;
             }
         """
         )
         self.command_history.setPlaceholderText(
-            "Git操作を行うと、対応するコマンドがここに表示されます..."
+            "Git操作を行うと、対応するコマンドがここに表示されます...\n\n"
+            "・コマンドを右クリックでコピーできます\n"
+            "・最大50件まで保持されます"
         )
+
+        layout.addWidget(self.command_history)
+
+        # 履歴カウンターを初期化
+        self.history_count = 0
 
         layout.addWidget(self.command_history)
 
@@ -539,15 +577,38 @@ class MainWindow(QMainWindow):
         timestamp = datetime.now().strftime("%H:%M:%S")
         status_icon = "✓" if result.success else "✗"
 
-        # コマンド行を作成
+        # 色付きHTMLでコマンド行を作成
+        if result.success:
+            color = "#00ff00"  # 緑
+        else:
+            color = "#ff5555"  # 赤
+
+        # プレーンテキストで追加（色は付けられないがシンプル）
         line = f"[{timestamp}] {status_icon} {result.command}"
 
         # 履歴に追加
         self.command_history.appendPlainText(line)
 
+        # 説明があれば追加
+        if result.description:
+            self.command_history.appendPlainText(f"    ├─ {result.description}")
+
         # エラーメッセージがあれば追加
         if result.error_message:
-            self.command_history.appendPlainText(f"    └─ {result.error_message}")
+            self.command_history.appendPlainText(
+                f"    └─ エラー: {result.error_message}"
+            )
+
+        # 空行を追加（読みやすさ向上）
+        self.command_history.appendPlainText("")
+
+        # 履歴カウンターを更新
+        self.history_count += 1
+        self.history_count_label.setText(f"{self.history_count} 件")
+
+        # 最新のコマンドに自動スクロール
+        scrollbar = self.command_history.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def _update_file_tree(self):
         """ファイルツリーを更新"""
@@ -697,3 +758,71 @@ class MainWindow(QMainWindow):
         delete_action.triggered.connect(self._on_delete_branch)
 
         menu.exec(self.branch_tree.mapToGlobal(position))
+
+    # ==================== コマンド履歴操作 ====================
+
+    def _clear_command_history(self):
+        """コマンド履歴をクリア"""
+        reply = QMessageBox.question(
+            self,
+            "確認",
+            "コマンド履歴をクリアしますか？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self.command_history.clear()
+            self.history_count = 0
+            self.history_count_label.setText("0 件")
+
+    def _copy_command_history(self):
+        """コマンド履歴全体をクリップボードにコピー"""
+        from PySide6.QtGui import QClipboard
+        from PySide6.QtWidgets import QApplication
+
+        text = self.command_history.toPlainText()
+        if text:
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            self.operation_label.setText(
+                "✓ コマンド履歴をクリップボードにコピーしました"
+            )
+        else:
+            QMessageBox.information(self, "情報", "コピーする履歴がありません")
+
+    def _show_history_context_menu(self, position):
+        """コマンド履歴のコンテキストメニューを表示"""
+        menu = QMenu(self)
+
+        # 選択されたテキストをコピー
+        copy_selected_action = menu.addAction("選択部分をコピー")
+        copy_selected_action.triggered.connect(self._copy_selected_history)
+
+        # 全体をコピー
+        copy_all_action = menu.addAction("全体をコピー")
+        copy_all_action.triggered.connect(self._copy_command_history)
+
+        menu.addSeparator()
+
+        # クリア
+        clear_action = menu.addAction("履歴をクリア")
+        clear_action.triggered.connect(self._clear_command_history)
+
+        # 選択されているテキストがない場合は選択コピーを無効化
+        if not self.command_history.textCursor().hasSelection():
+            copy_selected_action.setEnabled(False)
+
+        menu.exec(self.command_history.mapToGlobal(position))
+
+    def _copy_selected_history(self):
+        """選択されたコマンド履歴をクリップボードにコピー"""
+        from PySide6.QtGui import QClipboard
+        from PySide6.QtWidgets import QApplication
+
+        cursor = self.command_history.textCursor()
+        if cursor.hasSelection():
+            text = cursor.selectedText()
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            self.operation_label.setText("✓ 選択したテキストをコピーしました")
