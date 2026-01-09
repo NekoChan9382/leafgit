@@ -425,8 +425,6 @@ class MainWindow(QMainWindow):
             "・最大50件まで保持されます"
         )
 
-        layout.addWidget(self.command_history)
-
         # 履歴カウンターを初期化
         self.history_count = 0
 
@@ -521,7 +519,7 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "情報", "移動するブランチを選択してください")
             return
 
-        branch_name = selected_items[0].text(0).strip("● ").strip()
+        branch_name = selected_items[0].text(0).removeprefix("● ")
         result = self.controller.switch_branch(branch_name)
         if not result.success:
             QMessageBox.warning(self, "エラー", result.error_message)
@@ -533,7 +531,7 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "情報", "削除するブランチを選択してください")
             return
 
-        branch_name = selected_items[0].text(0).strip("● ").strip()
+        branch_name = selected_items[0].text(0).removeprefix("● ")
         result = self.controller.delete_branch(branch_name)
         if not result.success:
             QMessageBox.warning(self, "エラー", result.error_message)
