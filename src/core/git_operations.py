@@ -2,6 +2,7 @@ from git import Repo
 from git.exc import GitCommandError
 from models import CommandResult
 from utils import get_logger
+import os
 
 logger = get_logger(__name__)
 
@@ -118,7 +119,6 @@ class GitOperations:
         cmd = f"git add {' '.join(file_paths)}"
         description = "ファイルをステージングエリアに追加"
         try:
-            import os
 
             # ファイルの存在確認
             existing_files = []

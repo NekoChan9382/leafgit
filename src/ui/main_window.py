@@ -34,6 +34,8 @@ from core.app_controller import AppController
 from models import CommandResult
 from utils import get_logger
 
+from PySide6.QtGui import QClipboard
+from PySide6.QtWidgets import QApplication
 logger = get_logger(__name__)
 
 
@@ -778,8 +780,6 @@ class MainWindow(QMainWindow):
 
     def _copy_command_history(self):
         """コマンド履歴全体をクリップボードにコピー"""
-        from PySide6.QtGui import QClipboard
-        from PySide6.QtWidgets import QApplication
 
         text = self.command_history.toPlainText()
         if text:
@@ -816,9 +816,6 @@ class MainWindow(QMainWindow):
         menu.exec(self.command_history.mapToGlobal(position))
 
     def _copy_selected_history(self):
-        """選択されたコマンド履歴をクリップボードにコピー"""
-        from PySide6.QtGui import QClipboard
-        from PySide6.QtWidgets import QApplication
 
         cursor = self.command_history.textCursor()
         if cursor.hasSelection():
