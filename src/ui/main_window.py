@@ -501,7 +501,7 @@ class MainWindow(QMainWindow):
 
         file_paths = [item.text(0) for item in selected_items]
         self.controller.stage_files(file_paths)
-
+    # TODO: ブランチ名のバリデーションを実装
     def _on_create_branch(self):
         """新規ブランチを作成"""
         branch_name, ok = QInputDialog.getText(
@@ -523,7 +523,7 @@ class MainWindow(QMainWindow):
         result = self.controller.switch_branch(branch_name)
         if not result.success:
             QMessageBox.warning(self, "エラー", result.error_message)
-
+    # TODO: 削除確認ダイアログを追加
     def _on_delete_branch(self):
         """選択されたブランチを削除"""
         selected_items = self.branch_tree.selectedItems()
