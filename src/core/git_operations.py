@@ -138,7 +138,7 @@ class GitOperations:
 
             # 削除されたファイル: removeでステージング
             if deleted_files:
-                self.repo.index.remove(deleted_files, working_tree=True)
+                self.repo.index.remove(deleted_files, working_tree=False)
 
             return CommandResult(
                 success=True,
@@ -158,7 +158,7 @@ class GitOperations:
                 self.repo.index.reset(paths=file_paths)
             else:
                 # 初回コミット前: インデックスから削除
-                self.repo.index.remove(file_paths, working_tree=True)
+                self.repo.index.remove(file_paths, working_tree=False)
             return CommandResult(
                 success=True,
                 command=cmd,
