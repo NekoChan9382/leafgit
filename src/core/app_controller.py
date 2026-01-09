@@ -16,12 +16,12 @@ class AppController(QObject):
     """
 
     # シグナル定義
-    repository_opened = Signal(str)           # リポジトリが開かれた(パス)
-    repository_closed = Signal()              # リポジトリが閉じられた
+    repository_opened = Signal(str)  # リポジトリが開かれた(パス)
+    repository_closed = Signal()  # リポジトリが閉じられた
     command_executed = Signal(CommandResult)  # コマンドが実行された
-    files_changed = Signal(list)              # ファイル状態が変化した
-    branch_changed = Signal(str)              # ブランチが変化した
-    error_occurred = Signal(str)              # エラーが発生した
+    files_changed = Signal(list)  # ファイル状態が変化した
+    branch_changed = Signal(str)  # ブランチが変化した
+    error_occurred = Signal(str)  # エラーが発生した
 
     def __init__(self):
         super().__init__()
@@ -43,10 +43,7 @@ class AppController(QObject):
         """現在のブランチ名"""
         if self._git_ops is None:
             return None
-        try:
-            return self._git_ops.repo.active_branch.name
-        except Exception:
-            return None
+        return self._git_ops.get_current_branch()
 
     # ==================== リポジトリ操作 ====================
 
@@ -226,6 +223,8 @@ class AppController(QObject):
 
         result = self._git_ops.delete_branch(branch_name)
         self.command_executed.emit(result)
+        if result.success:
+            self.branch_changed.emit(self.current_branch or "")
         return result
 
     def merge_branch(self, source_branch: str) -> CommandResult:
@@ -244,10 +243,8 @@ class AppController(QObject):
         if not self._ensure_repository():
             return []
 
-        try:
-            return [branch.name for branch in self._git_ops.repo.branches]
-        except Exception:
-            return []
+        result = self._git_ops.get_branches()
+        return result
 
     # ==================== 情報取得 ====================
 
@@ -265,25 +262,8 @@ class AppController(QObject):
         if not self._ensure_repository():
             return {"staged": [], "unstaged": [], "untracked": []}
 
-        try:
-            repo = self._git_ops.repo
-
-            # ステージされた変更
-            staged = [item.a_path for item in repo.index.diff("HEAD")]
-
-            # ステージされていない変更
-            unstaged = [item.a_path for item in repo.index.diff(None)]
-
-            # 未追跡ファイル
-            untracked = repo.untracked_files
-
-            return {
-                "staged": staged,
-                "unstaged": unstaged,
-                "untracked": untracked,
-            }
-        except Exception:
-            return {"staged": [], "unstaged": [], "untracked": []}
+        result = self._git_ops.get_changed_files()
+        return result
 
     # ==================== プライベートメソッド ====================
 

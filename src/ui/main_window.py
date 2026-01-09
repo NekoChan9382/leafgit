@@ -23,12 +23,20 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QFileDialog,
     QMessageBox,
+    QListWidget,
+    QListWidgetItem,
+    QInputDialog,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
 
 from core.app_controller import AppController
 from models import CommandResult
+from utils import get_logger
+
+from PySide6.QtGui import QClipboard
+from PySide6.QtWidgets import QApplication
+logger = get_logger(__name__)
 
 
 class MainWindow(QMainWindow):
@@ -37,7 +45,7 @@ class MainWindow(QMainWindow):
     def __init__(self, controller: AppController):
         super().__init__()
         self.controller = controller
-        
+
         self.setWindowTitle("LeafGit")
         self.setMinimumSize(1000, 700)
 
@@ -80,6 +88,11 @@ class MainWindow(QMainWindow):
 
         file_menu.addSeparator()
 
+        update_action = QAction("更新(&R)", self)
+        update_action.setShortcut("Ctrl+R")
+        update_action.triggered.connect(self._update_file_tree)
+        file_menu.addAction(update_action)
+
         exit_action = QAction("終了(&X)", self)
         exit_action.setShortcut("Ctrl+Q")
         exit_action.triggered.connect(self.close)
@@ -109,7 +122,9 @@ class MainWindow(QMainWindow):
         git_menu.addSeparator()
 
         branch_menu = git_menu.addMenu("ブランチ(&B)")
-        branch_menu.addAction(QAction("新規ブランチ", self))
+        create_branch_action = QAction("新規ブランチ(&N)", self)
+        create_branch_action.triggered.connect(self._on_create_branch)
+        branch_menu.addAction(create_branch_action)
         branch_menu.addAction(QAction("ブランチを切り替え", self))
         branch_menu.addAction(QAction("ブランチを削除", self))
 
@@ -232,6 +247,11 @@ class MainWindow(QMainWindow):
         self.branch_tree.setHeaderHidden(True)
         self.branch_tree.setRootIsDecorated(False)
 
+        self.branch_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.branch_tree.customContextMenuRequested.connect(
+            self._show_branch_context_menu
+        )
+
         # サンプルデータ
         main_branch = QTreeWidgetItem(["● main"])
         self.branch_tree.addTopLevelItem(main_branch)
@@ -278,21 +298,47 @@ class MainWindow(QMainWindow):
         # Unstagedタブ
         unstaged_widget = QWidget()
         unstaged_layout = QVBoxLayout(unstaged_widget)
-        self.unstaged_diff = QPlainTextEdit()
-        self.unstaged_diff.setReadOnly(True)
-        self.unstaged_diff.setPlaceholderText(
-            "ステージされていない変更がここに表示されます"
+        unstaged_layout.setContentsMargins(5, 5, 5, 5)
+
+        unstaged_label = QLabel("ステージされていないファイル")
+        unstaged_layout.addWidget(unstaged_label)
+
+        self.unstaged_list = QListWidget()
+        self.unstaged_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.unstaged_list.customContextMenuRequested.connect(
+            self._show_unstaged_context_menu
         )
-        unstaged_layout.addWidget(self.unstaged_diff)
+        self.unstaged_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        unstaged_layout.addWidget(self.unstaged_list)
+
+        # Stageボタン
+        stage_button = QPushButton("Stage Selected")
+        stage_button.clicked.connect(self._stage_selected_files)
+        unstaged_layout.addWidget(stage_button)
+
         diff_tabs.addTab(unstaged_widget, "Unstaged")
 
         # Stagedタブ
         staged_widget = QWidget()
         staged_layout = QVBoxLayout(staged_widget)
-        self.staged_diff = QPlainTextEdit()
-        self.staged_diff.setReadOnly(True)
-        self.staged_diff.setPlaceholderText("ステージされた変更がここに表示されます")
-        staged_layout.addWidget(self.staged_diff)
+        staged_layout.setContentsMargins(5, 5, 5, 5)
+
+        staged_label = QLabel("ステージされたファイル")
+        staged_layout.addWidget(staged_label)
+
+        self.staged_list = QListWidget()
+        self.staged_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.staged_list.customContextMenuRequested.connect(
+            self._show_staged_context_menu
+        )
+        self.staged_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        staged_layout.addWidget(self.staged_list)
+
+        # Unstageボタン
+        unstage_button = QPushButton("Unstage Selected")
+        unstage_button.clicked.connect(self._unstage_selected_files)
+        staged_layout.addWidget(unstage_button)
+
         diff_tabs.addTab(staged_widget, "Staged")
 
         layout.addWidget(diff_tabs, stretch=1)
@@ -330,8 +376,38 @@ class MainWindow(QMainWindow):
         panel = QGroupBox("コマンド履歴")
         layout = QVBoxLayout(panel)
 
+        # ツールバー
+        toolbar = QHBoxLayout()
+        toolbar.setContentsMargins(0, 0, 0, 5)
+
+        # クリアボタン
+        clear_button = QPushButton("クリア")
+        clear_button.clicked.connect(self._clear_command_history)
+        toolbar.addWidget(clear_button)
+
+        # コピーボタン
+        copy_button = QPushButton("全体をコピー")
+        copy_button.clicked.connect(self._copy_command_history)
+        toolbar.addWidget(copy_button)
+
+        toolbar.addStretch()
+
+        # 履歴件数表示
+        self.history_count_label = QLabel("0 件")
+        toolbar.addWidget(self.history_count_label)
+
+        layout.addLayout(toolbar)
+
+        # 履歴表示エリア
         self.command_history = QPlainTextEdit()
         self.command_history.setReadOnly(True)
+        self.command_history.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
+        self.command_history.customContextMenuRequested.connect(
+            self._show_history_context_menu
+        )
+        self.command_history.setMaximumBlockCount(50)  # 最大50行
         self.command_history.setStyleSheet(
             """
             QPlainTextEdit {
@@ -339,12 +415,18 @@ class MainWindow(QMainWindow):
                 color: #cccccc;
                 font-family: monospace;
                 font-size: 12px;
+                padding: 5px;
             }
         """
         )
         self.command_history.setPlaceholderText(
-            "Git操作を行うと、対応するコマンドがここに表示されます..."
+            "Git操作を行うと、対応するコマンドがここに表示されます...\n\n"
+            "・コマンドを右クリックでコピーできます\n"
+            "・最大50件まで保持されます"
         )
+
+        # 履歴カウンターを初期化
+        self.history_count = 0
 
         layout.addWidget(self.command_history)
 
@@ -358,6 +440,10 @@ class MainWindow(QMainWindow):
         # リポジトリ情報
         self.repo_label = QLabel("リポジトリ: 未選択")
         status_bar.addWidget(self.repo_label)
+
+        # 操作情報
+        self.operation_label = QLabel("")
+        status_bar.addWidget(self.operation_label)
 
         # ブランチ情報
         self.branch_label = QLabel("ブランチ: -")
@@ -408,11 +494,47 @@ class MainWindow(QMainWindow):
         """選択ファイルをステージング"""
         selected_items = self.file_tree.selectedItems()
         if not selected_items:
-            QMessageBox.information(self, "情報", "ステージするファイルを選択してください")
+            QMessageBox.information(
+                self, "情報", "ステージするファイルを選択してください"
+            )
             return
 
         file_paths = [item.text(0) for item in selected_items]
         self.controller.stage_files(file_paths)
+    # TODO: ブランチ名のバリデーションを実装
+    def _on_create_branch(self):
+        """新規ブランチを作成"""
+        branch_name, ok = QInputDialog.getText(
+            self, "新規ブランチ", "ブランチ名を入力:"
+        )
+        if ok and branch_name:
+            result = self.controller.create_branch(branch_name)
+            if not result.success:
+                QMessageBox.warning(self, "エラー", result.error_message)
+
+    def _on_checkout_branch(self):
+        """選択されたブランチに移動"""
+        selected_items = self.branch_tree.selectedItems()
+        if not selected_items:
+            QMessageBox.information(self, "情報", "移動するブランチを選択してください")
+            return
+
+        branch_name = selected_items[0].text(0).removeprefix("● ")
+        result = self.controller.switch_branch(branch_name)
+        if not result.success:
+            QMessageBox.warning(self, "エラー", result.error_message)
+    # TODO: 削除確認ダイアログを追加
+    def _on_delete_branch(self):
+        """選択されたブランチを削除"""
+        selected_items = self.branch_tree.selectedItems()
+        if not selected_items:
+            QMessageBox.information(self, "情報", "削除するブランチを選択してください")
+            return
+
+        branch_name = selected_items[0].text(0).removeprefix("● ")
+        result = self.controller.delete_branch(branch_name)
+        if not result.success:
+            QMessageBox.warning(self, "エラー", result.error_message)
 
     # ==================== シグナルスロット ====================
 
@@ -454,21 +576,46 @@ class MainWindow(QMainWindow):
         """コマンド履歴に追加"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         status_icon = "✓" if result.success else "✗"
-        
-        # コマンド行を作成
+
+        # 色付きHTMLでコマンド行を作成
+        if result.success:
+            color = "#00ff00"  # 緑
+        else:
+            color = "#ff5555"  # 赤
+
+        # プレーンテキストで追加（色は付けられないがシンプル）
         line = f"[{timestamp}] {status_icon} {result.command}"
-        
+
         # 履歴に追加
         self.command_history.appendPlainText(line)
-        
+
+        # 説明があれば追加
+        if result.description:
+            self.command_history.appendPlainText(f"    ├─ {result.description}")
+
         # エラーメッセージがあれば追加
         if result.error_message:
-            self.command_history.appendPlainText(f"    └─ {result.error_message}")
+            self.command_history.appendPlainText(
+                f"    └─ エラー: {result.error_message}"
+            )
+
+        # 空行を追加（読みやすさ向上）
+        self.command_history.appendPlainText("")
+
+        # 履歴カウンターを更新
+        self.history_count += 1
+        self.history_count_label.setText(f"{self.history_count} 件")
+
+        # 最新のコマンドに自動スクロール
+        scrollbar = self.command_history.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def _update_file_tree(self):
         """ファイルツリーを更新"""
         self.file_tree.clear()
-        
+        self.unstaged_list.clear()
+        self.staged_list.clear()
+
         if not self.controller.is_repository_open:
             return
 
@@ -476,26 +623,52 @@ class MainWindow(QMainWindow):
 
         # ステージされたファイル
         for file_path in files["staged"]:
+            # 左サイドバーのツリー
             item = QTreeWidgetItem([file_path, "Staged"])
             item.setForeground(1, Qt.GlobalColor.green)
             self.file_tree.addTopLevelItem(item)
 
+            # Stagedリスト
+            list_item = QListWidgetItem(file_path)
+            self.staged_list.addItem(list_item)
+
         # ステージされていない変更
         for file_path in files["unstaged"]:
+            # 左サイドバーのツリー
             item = QTreeWidgetItem([file_path, "Modified"])
             item.setForeground(1, Qt.GlobalColor.yellow)
             self.file_tree.addTopLevelItem(item)
 
+            # Unstagedリスト
+            list_item = QListWidgetItem(file_path)
+            self.unstaged_list.addItem(list_item)
+
         # 未追跡ファイル
         for file_path in files["untracked"]:
+            # 左サイドバーのツリー
             item = QTreeWidgetItem([file_path, "Untracked"])
             item.setForeground(1, Qt.GlobalColor.red)
             self.file_tree.addTopLevelItem(item)
 
+            # Unstagedリスト
+            list_item = QListWidgetItem(file_path)
+            self.unstaged_list.addItem(list_item)
+
+        # 削除されたファイル
+        for file_path in files["deleted"]:
+            # 左サイドバーのツリー
+            item = QTreeWidgetItem([file_path, "Deleted"])
+            item.setForeground(1, Qt.GlobalColor.darkRed)
+            self.file_tree.addTopLevelItem(item)
+
+            # Unstagedリスト
+            list_item = QListWidgetItem(file_path)
+            self.unstaged_list.addItem(list_item)
+
     def _update_branch_list(self):
         """ブランチ一覧を更新"""
         self.branch_tree.clear()
-        
+
         if not self.controller.is_repository_open:
             return
 
@@ -508,3 +681,143 @@ class MainWindow(QMainWindow):
             if branch == current_branch:
                 item.setForeground(0, Qt.GlobalColor.green)
             self.branch_tree.addTopLevelItem(item)
+
+    # ==================== ステージング操作 ====================
+
+    def _stage_selected_files(self):
+        """選択されたファイルをステージング"""
+        selected_items = self.unstaged_list.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "警告", "ファイルが選択されていません")
+            return
+
+        file_paths = [item.text() for item in selected_items]
+        result = self.controller.stage_files(file_paths)
+
+        if result.success:
+            self.operation_label.setText(
+                f"✓ {len(file_paths)}個のファイルをステージしました"
+            )
+        else:
+            QMessageBox.critical(
+                self, "エラー", f"ステージに失敗しました\n{result.error_message}"
+            )
+
+    def _unstage_selected_files(self):
+        """選択されたファイルをアンステージ"""
+        selected_items = self.staged_list.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "警告", "ファイルが選択されていません")
+            return
+
+        file_paths = [item.text() for item in selected_items]
+        result = self.controller.unstage_files(file_paths)
+
+        if result.success:
+            self.operation_label.setText(
+                f"✓ {len(file_paths)}個のファイルをアンステージしました"
+            )
+        else:
+            QMessageBox.critical(
+                self, "エラー", f"アンステージに失敗しました\n{result.error_message}"
+            )
+
+    def _show_unstaged_context_menu(self, position):
+        """Unstagedリストのコンテキストメニューを表示"""
+        if not self.unstaged_list.selectedItems():
+            return
+
+        menu = QMenu(self)
+        stage_action = menu.addAction("Stage")
+        stage_action.triggered.connect(self._stage_selected_files)
+
+        menu.exec(self.unstaged_list.mapToGlobal(position))
+
+    def _show_staged_context_menu(self, position):
+        """Stagedリストのコンテキストメニューを表示"""
+        if not self.staged_list.selectedItems():
+            return
+
+        menu = QMenu(self)
+        unstage_action = menu.addAction("Unstage")
+        unstage_action.triggered.connect(self._unstage_selected_files)
+
+        menu.exec(self.staged_list.mapToGlobal(position))
+
+    def _show_branch_context_menu(self, position):
+        """ブランチ一覧のコンテキストメニューを表示"""
+        selected_item = self.branch_tree.selectedItems()
+        if not selected_item:
+            return
+
+        menu = QMenu(self)
+        checkout_action = menu.addAction("移動")
+        delete_action = menu.addAction("削除")
+
+        checkout_action.triggered.connect(self._on_checkout_branch)
+        delete_action.triggered.connect(self._on_delete_branch)
+
+        menu.exec(self.branch_tree.mapToGlobal(position))
+
+    # ==================== コマンド履歴操作 ====================
+
+    def _clear_command_history(self):
+        """コマンド履歴をクリア"""
+        reply = QMessageBox.question(
+            self,
+            "確認",
+            "コマンド履歴をクリアしますか？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self.command_history.clear()
+            self.history_count = 0
+            self.history_count_label.setText("0 件")
+
+    def _copy_command_history(self):
+        """コマンド履歴全体をクリップボードにコピー"""
+
+        text = self.command_history.toPlainText()
+        if text:
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            self.operation_label.setText(
+                "✓ コマンド履歴をクリップボードにコピーしました"
+            )
+        else:
+            QMessageBox.information(self, "情報", "コピーする履歴がありません")
+
+    def _show_history_context_menu(self, position):
+        """コマンド履歴のコンテキストメニューを表示"""
+        menu = QMenu(self)
+
+        # 選択されたテキストをコピー
+        copy_selected_action = menu.addAction("選択部分をコピー")
+        copy_selected_action.triggered.connect(self._copy_selected_history)
+
+        # 全体をコピー
+        copy_all_action = menu.addAction("全体をコピー")
+        copy_all_action.triggered.connect(self._copy_command_history)
+
+        menu.addSeparator()
+
+        # クリア
+        clear_action = menu.addAction("履歴をクリア")
+        clear_action.triggered.connect(self._clear_command_history)
+
+        # 選択されているテキストがない場合は選択コピーを無効化
+        if not self.command_history.textCursor().hasSelection():
+            copy_selected_action.setEnabled(False)
+
+        menu.exec(self.command_history.mapToGlobal(position))
+
+    def _copy_selected_history(self):
+
+        cursor = self.command_history.textCursor()
+        if cursor.hasSelection():
+            text = cursor.selectedText()
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            self.operation_label.setText("✓ 選択したテキストをコピーしました")

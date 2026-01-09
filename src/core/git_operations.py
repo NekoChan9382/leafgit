@@ -1,6 +1,10 @@
 from git import Repo
 from git.exc import GitCommandError
 from models import CommandResult
+from utils import get_logger
+import os
+
+logger = get_logger(__name__)
 
 
 class GitOperations:
@@ -115,7 +119,46 @@ class GitOperations:
         cmd = f"git add {' '.join(file_paths)}"
         description = "ファイルをステージングエリアに追加"
         try:
-            self.repo.index.add(file_paths)
+
+            # ファイルの存在確認
+            existing_files = []
+            deleted_files = []
+
+            repo_path = self.repo.working_tree_dir
+            for file_path in file_paths:
+                full_path = os.path.join(repo_path, file_path)
+                if os.path.exists(full_path):
+                    existing_files.append(file_path)
+                else:
+                    deleted_files.append(file_path)
+
+            # 存在するファイル: 通常のadd
+            if existing_files:
+                self.repo.index.add(existing_files)
+
+            # 削除されたファイル: removeでステージング
+            if deleted_files:
+                self.repo.index.remove(deleted_files, working_tree=False)
+
+            return CommandResult(
+                success=True,
+                command=cmd,
+                description=description,
+            )
+        except Exception as e:
+            return self._handle_error(e, cmd, description)
+
+    def unstage_files(self, file_paths):
+        """ファイルをアンステージ"""
+        cmd = f"git reset HEAD {' '.join(file_paths)}"
+        description = "ファイルをアンステージ"
+        try:
+            # HEADが有効かチェック（初回コミット前）
+            if self.repo.head.is_valid():
+                self.repo.index.reset(paths=file_paths)
+            else:
+                # 初回コミット前: インデックスから削除
+                self.repo.index.remove(file_paths, working_tree=False)
             return CommandResult(
                 success=True,
                 command=cmd,
@@ -164,6 +207,41 @@ class GitOperations:
             return self._handle_error(e, cmd, description)
 
     # branches
+
+    def get_branches(self):
+        """ローカルブランチの一覧を取得"""
+        try:
+            branches = [branch.name for branch in self.repo.branches]
+            return branches
+        except Exception as e:
+            logger.warning(f"ブランチ一覧の取得に失敗: {e}")
+            return []
+
+    def get_current_branch(self):
+        """
+        現在のブランチ名を取得
+
+        Returns:
+            str or None: ブランチ名。HEAD未確定（初回コミット前）の場合はNone
+        """
+        try:
+            # HEADが存在するか確認
+            if self.repo.head.is_valid():
+                return self.repo.active_branch.name
+            else:
+                # 初回コミット前: HEADは存在するがコミットを指していない
+                # この場合でもブランチ名は取得可能な場合がある
+                try:
+                    return self.repo.active_branch.name
+                except TypeError:
+                    # detached HEAD 状態
+                    return None
+        except TypeError:
+            # detached HEAD 状態
+            return None
+        except Exception as e:
+            logger.warning(f"現在のブランチ取得に失敗: {e}")
+            return None
 
     def create_branch(self, branch_name):
         cmd = f"git checkout -b {branch_name}"
@@ -219,3 +297,56 @@ class GitOperations:
             )
         except Exception as e:
             return self._handle_error(e, cmd, description)
+
+    # files
+
+    def get_changed_files(self):
+        """
+        変更されたファイルを取得
+
+        Returns:
+            dict: ステージされたファイル、ステージされていないファイル、未追跡ファイル、削除されたファイルのリスト
+        """
+        try:
+            staged = []
+            unstaged = []
+            deleted = []
+
+            # HEADが有効かチェック（初回コミット前は無効）
+            if self.repo.head.is_valid():
+                # ステージされた変更 (HEAD vs Index)
+                for item in self.repo.index.diff("HEAD"):
+                    # 削除されたファイルはa_path、追加/変更されたファイルもa_path
+                    path = item.a_path if item.a_path else item.b_path
+                    if path:
+                        staged.append(path)
+            else:
+                # 初回コミット前: インデックスに追加されたファイルをstagedとみなす
+                staged = [entry[0] for entry in self.repo.index.entries.keys()]
+
+            # ステージされていない変更 (Index vs Working Tree)
+            for item in self.repo.index.diff(None):
+                # 削除されたファイルはa_path、変更されたファイルもa_path
+                path = item.a_path if item.a_path else item.b_path
+                if path:
+                    if item.change_type == "D":
+                        deleted.append(path)
+                    else:
+                        unstaged.append(path)
+
+            untracked = self.repo.untracked_files
+
+            return {
+                "staged": staged,
+                "unstaged": unstaged,
+                "untracked": untracked,
+                "deleted": deleted,
+            }
+        except Exception as e:
+            logger.warning(f"変更ファイルの取得に失敗: {e}")
+            return {
+                "staged": [],
+                "unstaged": [],
+                "untracked": [],
+                "deleted": [],
+            }
