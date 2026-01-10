@@ -165,6 +165,9 @@ class AppController(QObject):
 
     # ==================== リモート操作 ====================
 
+    def connetct_remote(self, url: str, name: str = "origin") -> CommandResult:
+        if not self._ensure_repository():
+            return self._no_repository_error("git remote")
     def push(self, remote: str = "origin", branch: str = None) -> CommandResult:
         """変更をプッシュ"""
         if not self._ensure_repository():

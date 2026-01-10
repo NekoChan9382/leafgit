@@ -180,6 +180,19 @@ class GitOperations:
         except Exception as e:
             return self._handle_error(e, cmd, description)
 
+    def connect_remote(self, url, name="origin"):
+        cmd = f"git remote add {name} {url}"
+        description = "リモートリポジトリに接続"
+        try:
+            self.repo.create_remote(name, url)
+            return CommandResult(
+                success=True,
+                command=cmd,
+                description=description,
+            )
+        except Exception as e:
+            return self._handle_error(e, cmd, description)
+
     def push_changes(self, remote="origin", branch="main"):
         cmd = f"git push {remote} {branch}"
         description = "変更をリモートリポジトリに反映"

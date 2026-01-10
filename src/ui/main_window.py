@@ -69,7 +69,6 @@ class MainWindow(QMainWindow):
         """メニューバーの設定"""
         menubar = self.menuBar()
 
-        # ファイルメニュー
         file_menu = menubar.addMenu("ファイル(&F)")
 
         open_repo_action = QAction("リポジトリを開く(&O)", self)
@@ -108,18 +107,22 @@ class MainWindow(QMainWindow):
         commit_action.setShortcut("Ctrl+Return")
         commit_action.triggered.connect(self._on_commit)
         git_menu.addAction(commit_action)
+        
+        remote_menu = git_menu.addMenu("リモート(&R)")
+
+        add_remote_action = QAction("リモートと接続")
+        add_remote_action.triggered.connect(self._on_connect_remote)
+        remote_menu.addAction(add_remote_action)
 
         push_action = QAction("プッシュ(&P)", self)
         push_action.setShortcut("Ctrl+Shift+P")
         push_action.triggered.connect(self._on_push)
-        git_menu.addAction(push_action)
+        remote_menu.addAction(push_action)
 
         pull_action = QAction("プル(&L)", self)
         pull_action.setShortcut("Ctrl+Shift+L")
         pull_action.triggered.connect(self._on_pull)
-        git_menu.addAction(pull_action)
-
-        git_menu.addSeparator()
+        remote_menu.addAction(pull_action)
 
         branch_menu = git_menu.addMenu("ブランチ(&B)")
         create_branch_action = QAction("新規ブランチ(&N)", self)
@@ -535,7 +538,13 @@ class MainWindow(QMainWindow):
         result = self.controller.delete_branch(branch_name)
         if not result.success:
             QMessageBox.warning(self, "エラー", result.error_message)
-
+    
+    def _on_connect_remote(self):
+        """リモートリポジトリに接続"""
+        remote_url, ok = QInputDialog.getText(
+                self, "リモートリポジトリに接続", "リモートのURLを入力:")
+        if ok and remote_url:
+            result = self.controller.is_repository_open
     # ==================== シグナルスロット ====================
 
     def _on_repository_opened(self, path: str):
