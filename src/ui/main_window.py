@@ -107,7 +107,7 @@ class MainWindow(QMainWindow):
         commit_action.setShortcut("Ctrl+Return")
         commit_action.triggered.connect(self._on_commit)
         git_menu.addAction(commit_action)
-        
+
         remote_menu = git_menu.addMenu("リモート(&R)")
 
         add_remote_action = QAction("リモートと接続")
@@ -250,7 +250,8 @@ class MainWindow(QMainWindow):
         self.branch_tree.setHeaderHidden(True)
         self.branch_tree.setRootIsDecorated(False)
 
-        self.branch_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.branch_tree.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
         self.branch_tree.customContextMenuRequested.connect(
             self._show_branch_context_menu
         )
@@ -307,11 +308,13 @@ class MainWindow(QMainWindow):
         unstaged_layout.addWidget(unstaged_label)
 
         self.unstaged_list = QListWidget()
-        self.unstaged_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.unstaged_list.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
         self.unstaged_list.customContextMenuRequested.connect(
             self._show_unstaged_context_menu
         )
-        self.unstaged_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.unstaged_list.setSelectionMode(
+            QListWidget.SelectionMode.ExtendedSelection)
         unstaged_layout.addWidget(self.unstaged_list)
 
         # Stageボタン
@@ -330,11 +333,13 @@ class MainWindow(QMainWindow):
         staged_layout.addWidget(staged_label)
 
         self.staged_list = QListWidget()
-        self.staged_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.staged_list.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
         self.staged_list.customContextMenuRequested.connect(
             self._show_staged_context_menu
         )
-        self.staged_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.staged_list.setSelectionMode(
+            QListWidget.SelectionMode.ExtendedSelection)
         staged_layout.addWidget(self.staged_list)
 
         # Unstageボタン
@@ -505,6 +510,7 @@ class MainWindow(QMainWindow):
         file_paths = [item.text(0) for item in selected_items]
         self.controller.stage_files(file_paths)
     # TODO: ブランチ名のバリデーションを実装
+
     def _on_create_branch(self):
         """新規ブランチを作成"""
         branch_name, ok = QInputDialog.getText(
@@ -527,6 +533,7 @@ class MainWindow(QMainWindow):
         if not result.success:
             QMessageBox.warning(self, "エラー", result.error_message)
     # TODO: 削除確認ダイアログを追加
+
     def _on_delete_branch(self):
         """選択されたブランチを削除"""
         selected_items = self.branch_tree.selectedItems()
@@ -538,11 +545,11 @@ class MainWindow(QMainWindow):
         result = self.controller.delete_branch(branch_name)
         if not result.success:
             QMessageBox.warning(self, "エラー", result.error_message)
-    
+
     def _on_connect_remote(self):
         """リモートリポジトリに接続"""
         remote_url, ok = QInputDialog.getText(
-                self, "リモートリポジトリに接続", "リモートのURLを入力:")
+            self, "リモートリポジトリに接続", "リモートのURLを入力:")
         if ok and remote_url:
             result = self.controller.is_repository_open
     # ==================== シグナルスロット ====================
@@ -600,7 +607,8 @@ class MainWindow(QMainWindow):
 
         # 説明があれば追加
         if result.description:
-            self.command_history.appendPlainText(f"    ├─ {result.description}")
+            self.command_history.appendPlainText(
+                f"    ├─ {result.description}")
 
         # エラーメッセージがあれば追加
         if result.error_message:
