@@ -251,7 +251,8 @@ class MainWindow(QMainWindow):
         self.branch_tree.setHeaderHidden(True)
         self.branch_tree.setRootIsDecorated(False)
 
-        self.branch_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.branch_tree.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
         self.branch_tree.customContextMenuRequested.connect(
             self._show_branch_context_menu
         )
@@ -308,11 +309,13 @@ class MainWindow(QMainWindow):
         unstaged_layout.addWidget(unstaged_label)
 
         self.unstaged_list = QListWidget()
-        self.unstaged_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.unstaged_list.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
         self.unstaged_list.customContextMenuRequested.connect(
             self._show_unstaged_context_menu
         )
-        self.unstaged_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.unstaged_list.setSelectionMode(
+            QListWidget.SelectionMode.ExtendedSelection)
         unstaged_layout.addWidget(self.unstaged_list)
 
         # Stageボタン
@@ -331,11 +334,13 @@ class MainWindow(QMainWindow):
         staged_layout.addWidget(staged_label)
 
         self.staged_list = QListWidget()
-        self.staged_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.staged_list.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
         self.staged_list.customContextMenuRequested.connect(
             self._show_staged_context_menu
         )
-        self.staged_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.staged_list.setSelectionMode(
+            QListWidget.SelectionMode.ExtendedSelection)
         staged_layout.addWidget(self.staged_list)
 
         # Unstageボタン
@@ -613,7 +618,8 @@ class MainWindow(QMainWindow):
 
         # 説明があれば追加
         if result.description:
-            self.command_history.appendPlainText(f"    ├─ {result.description}")
+            self.command_history.appendPlainText(
+                f"    ├─ {result.description}")
 
         # エラーメッセージがあれば追加
         if result.error_message:
