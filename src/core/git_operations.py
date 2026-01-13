@@ -76,7 +76,7 @@ class GitOperations:
             error_text = (error.stderr or str(error)).lower()
         else:
             error_text = str(error).lower()
-        print(error_text)
+        logger.error("GitError: %s", error_text)
         # エラーパターンをマッチング
         user_message = None
         for pattern, message in self._ERROR_PATTERNS.items():
@@ -211,7 +211,7 @@ class GitOperations:
         cmd = f"git pull {remote} {branch}"
         description = "リモートリポジトリから変更を取得"
         try:
-            self.repo.git.pull(remote, branch)
+            self.repo.git.pull(remote, branch, "--no-rebase")
             return CommandResult(
                 success=True,
                 command=cmd,
