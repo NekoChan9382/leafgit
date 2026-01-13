@@ -181,6 +181,7 @@ class GitOperations:
         except Exception as e:
             return self._handle_error(e, cmd, description)
 
+    # TODO: Add URL validation
     def connect_remote(self, url, name="origin"):
         cmd = f"git remote add {name} {url}"
         description = "リモートリポジトリに接続"

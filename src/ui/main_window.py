@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
 
         remote_menu = git_menu.addMenu("リモート(&R)")
 
-        add_remote_action = QAction("リモートと接続", self)
+        add_remote_action = QAction("リモートと接続(&A)", self)
         add_remote_action.triggered.connect(self._on_connect_remote)
         remote_menu.addAction(add_remote_action)
 
