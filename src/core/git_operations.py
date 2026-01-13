@@ -47,6 +47,7 @@ class GitOperations:
         "conflict": "コンフリクトが発生しました。手動で解決してください",
         "merge is not possible": "マージできません",
         "not something we can merge": "マージ対象が無効です",
+        "you have divergent branches and need to specify how to reconcile them": "マージ方法を指定する必要があります",
         # 作業ツリー関連
         "local changes would be overwritten": "未コミットの変更が上書きされます。先にコミットまたはstashしてください",
         "uncommitted changes": "未コミットの変更があります。先にコミットまたはstashしてください",
@@ -75,7 +76,7 @@ class GitOperations:
             error_text = (error.stderr or str(error)).lower()
         else:
             error_text = str(error).lower()
-
+        logger.error("GitError: %s", error_text)
         # エラーパターンをマッチング
         user_message = None
         for pattern, message in self._ERROR_PATTERNS.items():
@@ -180,6 +181,20 @@ class GitOperations:
         except Exception as e:
             return self._handle_error(e, cmd, description)
 
+    # TODO: Add URL validation
+    def connect_remote(self, url, name="origin"):
+        cmd = f"git remote add {name} {url}"
+        description = "リモートリポジトリに接続"
+        try:
+            self.repo.create_remote(name, url)
+            return CommandResult(
+                success=True,
+                command=cmd,
+                description=description,
+            )
+        except Exception as e:
+            return self._handle_error(e, cmd, description)
+
     def push_changes(self, remote="origin", branch="main"):
         cmd = f"git push {remote} {branch}"
         description = "変更をリモートリポジトリに反映"
@@ -197,7 +212,7 @@ class GitOperations:
         cmd = f"git pull {remote} {branch}"
         description = "リモートリポジトリから変更を取得"
         try:
-            self.repo.git.pull(remote, branch)
+            self.repo.git.pull(remote, branch, "--no-rebase")
             return CommandResult(
                 success=True,
                 command=cmd,
