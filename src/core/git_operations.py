@@ -47,7 +47,7 @@ class GitOperations:
         "conflict": "コンフリクトが発生しました。手動で解決してください",
         "merge is not possible": "マージできません",
         "not something we can merge": "マージ対象が無効です",
-        "you have divergent branches and need to specify how to reconcile them": "マージ方法を指定する必要があります",
+        # "you have divergent branches and need to specify how to reconcile them": "マージ方法を指定する必要があります",
         # 作業ツリー関連
         "local changes would be overwritten": "未コミットの変更が上書きされます。先にコミットまたはstashしてください",
         "uncommitted changes": "未コミットの変更があります。先にコミットまたはstashしてください",
