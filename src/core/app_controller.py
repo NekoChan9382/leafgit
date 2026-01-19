@@ -4,10 +4,39 @@ from typing import Optional, List
 from PySide6.QtCore import QObject, Signal
 
 from core.git_operations import GitOperations
-from models import CommandResult
+from models import CommandResult, Glossary, GlossaryTerm
 
 
 class AppController(QObject):
+    def __init__(self):
+        super().__init__()
+        self.git = GitController()
+        self.glossary = GlossaryController()
+
+        self.repository_opened = self.git.repository_opened
+        self.repository_closed = self.git.repository_closed
+        self.command_executed = self.git.command_executed
+        self.files_changed = self.git.files_changed
+        self.branch_changed = self.git.branch_changed
+        self.error_occurred = self.git.error_occurred
+
+        @property
+        def is_repository_open(self) -> bool:
+            """リポジトリが開かれているかどうか"""
+            return self.git.is_repository_open
+
+        @property
+        def repository_path(self) -> Optional[str]:
+            """現在のリポジトリパス"""
+            return self.git.repository_path
+
+        @property
+        def current_branch(self) -> Optional[str]:
+            """現在のブランチ名"""
+            return self.git.current_branch
+
+
+class GitController(QObject):
     """
     アプリケーション全体を制御するController
 
@@ -296,3 +325,23 @@ class AppController(QObject):
         files = self.get_changed_files()
         all_files = files["staged"] + files["unstaged"] + files["untracked"]
         self.files_changed.emit(all_files)
+
+
+# ==================== 用語集操作 ====================
+class GlossaryController:
+    """用語集を管理するコントローラー"""
+
+    def __init__(self):
+        self._glossary = Glossary()
+
+    def get_all_glossary_terms(self) -> List[GlossaryTerm]:
+        """すべての用語を取得"""
+        return self._glossary.get_all_terms()
+
+    def search_glossary_terms(self, query: str) -> List[GlossaryTerm]:
+        """用語を検索"""
+        return self._glossary.search(query)
+
+    def get_glossary_term(self, term_name: str) -> Optional[GlossaryTerm]:
+        """特定の用語を取得"""
+        return self._glossary.get_term(term_name)
