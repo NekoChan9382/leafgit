@@ -279,7 +279,7 @@ class MainWindow(QMainWindow):
         self.glossary_list.setRootIsDecorated(False)
 
         # サンプル用語
-        terms = self.controller.get_all_glossary_terms()
+        terms = self.controller.glossary.get_all_glossary_terms()
         for term in terms:
             self.glossary_list.addTopLevelItem(QTreeWidgetItem([term.term]))
 
@@ -465,7 +465,7 @@ class MainWindow(QMainWindow):
             self, "リポジトリを選択", "", QFileDialog.Option.ShowDirsOnly
         )
         if path:
-            result = self.controller.open_repository(path)
+            result = self.controller.git.open_repository(path)
             if not result.success:
                 QMessageBox.warning(self, "エラー", result.error_message)
 
@@ -475,7 +475,7 @@ class MainWindow(QMainWindow):
             self, "リポジトリを作成する場所を選択", "", QFileDialog.Option.ShowDirsOnly
         )
         if path:
-            result = self.controller.init_repository(path)
+            result = self.controller.git.init_repository(path)
             if not result.success:
                 QMessageBox.warning(self, "エラー", result.error_message)
 
@@ -486,17 +486,17 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "エラー", "コミットメッセージを入力してください")
             return
 
-        result = self.controller.commit(message)
+        result = self.controller.git.commit(message)
         if result.success:
             self.commit_message.clear()
 
     def _on_push(self):
         """プッシュを実行"""
-        self.controller.push()
+        self.controller.git.push()
 
     def _on_pull(self):
         """プルを実行"""
-        self.controller.pull()
+        self.controller.git.pull()
 
     def _on_stage_files(self):
         """選択ファイルをステージング"""
@@ -508,7 +508,7 @@ class MainWindow(QMainWindow):
             return
 
         file_paths = [item.text(0) for item in selected_items]
-        self.controller.stage_files(file_paths)
+        self.controller.git.stage_files(file_paths)
 
     # TODO: ブランチ名のバリデーションを実装
 
@@ -518,7 +518,7 @@ class MainWindow(QMainWindow):
             self, "新規ブランチ", "ブランチ名を入力:"
         )
         if ok and branch_name:
-            result = self.controller.create_branch(branch_name)
+            result = self.controller.git.create_branch(branch_name)
             if not result.success:
                 QMessageBox.warning(self, "エラー", result.error_message)
 
@@ -530,7 +530,7 @@ class MainWindow(QMainWindow):
             return
 
         branch_name = selected_items[0].text(0).removeprefix("● ")
-        result = self.controller.switch_branch(branch_name)
+        result = self.controller.git.switch_branch(branch_name)
         if not result.success:
             QMessageBox.warning(self, "エラー", result.error_message)
 
@@ -544,13 +544,13 @@ class MainWindow(QMainWindow):
             return
 
         branch_name = selected_items[0].text(0).removeprefix("● ")
-        result = self.controller.delete_branch(branch_name)
+        result = self.controller.git.delete_branch(branch_name)
         if not result.success:
             QMessageBox.warning(self, "エラー", result.error_message)
 
     def _on_connect_remote(self):
         """リモートリポジトリに接続"""
-        if not self.controller.is_repository_open:
+        if not self.controller.git.is_repository_open:
             QMessageBox.warning(self, "エラー", "リポジトリが開かれていません")
             return
 
@@ -642,10 +642,10 @@ class MainWindow(QMainWindow):
         self.unstaged_list.clear()
         self.staged_list.clear()
 
-        if not self.controller.is_repository_open:
+        if not self.controller.git.is_repository_open:
             return
 
-        files = self.controller.get_changed_files()
+        files = self.controller.git.get_changed_files()
 
         # ステージされたファイル
         for file_path in files["staged"]:
@@ -695,11 +695,11 @@ class MainWindow(QMainWindow):
         """ブランチ一覧を更新"""
         self.branch_tree.clear()
 
-        if not self.controller.is_repository_open:
+        if not self.controller.git.is_repository_open:
             return
 
-        current_branch = self.controller.current_branch
-        branches = self.controller.get_branches()
+        current_branch = self.controller.git.current_branch
+        branches = self.controller.git.get_branches()
 
         for branch in branches:
             prefix = "● " if branch == current_branch else "  "
@@ -718,7 +718,7 @@ class MainWindow(QMainWindow):
             return
 
         file_paths = [item.text() for item in selected_items]
-        result = self.controller.stage_files(file_paths)
+        result = self.controller.git.stage_files(file_paths)
 
         if result.success:
             self.operation_label.setText(
@@ -737,7 +737,7 @@ class MainWindow(QMainWindow):
             return
 
         file_paths = [item.text() for item in selected_items]
-        result = self.controller.unstage_files(file_paths)
+        result = self.controller.git.unstage_files(file_paths)
 
         if result.success:
             self.operation_label.setText(
@@ -854,14 +854,14 @@ class MainWindow(QMainWindow):
         """用語集アイテムがダブルクリックされた時の処理"""
         term_text = item.text(0)
         # Controllerから用語を取得
-        term = self.controller.get_glossary_term(term_text)
+        term = self.controller.glossary.get_glossary_term(term_text)
         if term:
             self._show_glossary_detail(term)
 
     def _show_glossary_detail(self, term: GlossaryTerm):
         """用語集の詳細ダイアログを表示"""
         # 全用語をControllerから取得
-        all_terms = self.controller.get_all_glossary_terms()
+        all_terms = self.controller.glossary.get_all_glossary_terms()
         dialog = GlossaryDetailDialog(term, all_terms, self)
         dialog.show()
         self.current_dialog = dialog
