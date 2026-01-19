@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -12,16 +12,20 @@ from PySide6.QtWidgets import (
     QLineEdit,
 )
 from PySide6.QtCore import Qt
-from models.glossary import Glossary, GlossaryTerm
+from models.glossary import GlossaryTerm
 
 
 class GlossaryDetailDialog(QDialog):
     """用語詳細ダイアログ"""
 
-    def __init__(self, term: Optional[GlossaryTerm] = None, parent=None):
+    def __init__(
+        self,
+        term: Optional[GlossaryTerm] = None,
+        all_terms: Optional[List[GlossaryTerm]] = None,
+        parent=None,
+    ):
         super().__init__(parent)
-        self.glossary = Glossary()
-        self.terms = self.glossary.get_all_terms()
+        self.terms = all_terms or []
         self.current_term = term
 
         # ウィンドウ設定

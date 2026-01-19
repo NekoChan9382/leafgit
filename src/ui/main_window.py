@@ -37,7 +37,7 @@ from utils import get_logger
 from PySide6.QtGui import QClipboard
 from PySide6.QtWidgets import QApplication
 
-from models.glossary import Glossary, GlossaryTerm
+from models.glossary import GlossaryTerm
 from ui.dialogs.glossary_dialog import GlossaryDetailDialog
 
 logger = get_logger(__name__)
@@ -49,7 +49,6 @@ class MainWindow(QMainWindow):
     def __init__(self, controller: AppController):
         super().__init__()
         self.controller = controller
-        self.glossary = Glossary()
 
         self.setWindowTitle("LeafGit")
         self.setMinimumSize(1000, 700)
@@ -280,7 +279,7 @@ class MainWindow(QMainWindow):
         self.glossary_list.setRootIsDecorated(False)
 
         # サンプル用語
-        terms = self.glossary.get_all_terms()
+        terms = self.controller.get_all_glossary_terms()
         for term in terms:
             self.glossary_list.addTopLevelItem(QTreeWidgetItem([term.term]))
 
@@ -854,12 +853,15 @@ class MainWindow(QMainWindow):
     def _on_glossary_item_double_clicked(self, item: QTreeWidgetItem):
         """用語集アイテムがダブルクリックされた時の処理"""
         term_text = item.text(0)
-        term = self.glossary.get_term(term_text)
+        # Controllerから用語を取得
+        term = self.controller.get_glossary_term(term_text)
         if term:
             self._show_glossary_detail(term)
 
     def _show_glossary_detail(self, term: GlossaryTerm):
         """用語集の詳細ダイアログを表示"""
-        dialog = GlossaryDetailDialog(term, self)
+        # 全用語をControllerから取得
+        all_terms = self.controller.get_all_glossary_terms()
+        dialog = GlossaryDetailDialog(term, all_terms, self)
         dialog.show()
         self.current_dialog = dialog
