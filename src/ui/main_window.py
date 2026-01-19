@@ -37,6 +37,9 @@ from utils import get_logger
 from PySide6.QtGui import QClipboard
 from PySide6.QtWidgets import QApplication
 
+from models.glossary import Glossary, GlossaryTerm
+from ui.dialogs.glossary_dialog import GlossaryDetailDialog
+
 logger = get_logger(__name__)
 
 
@@ -46,6 +49,7 @@ class MainWindow(QMainWindow):
     def __init__(self, controller: AppController):
         super().__init__()
         self.controller = controller
+        self.glossary = Glossary()
 
         self.setWindowTitle("LeafGit")
         self.setMinimumSize(1000, 700)
@@ -251,8 +255,7 @@ class MainWindow(QMainWindow):
         self.branch_tree.setHeaderHidden(True)
         self.branch_tree.setRootIsDecorated(False)
 
-        self.branch_tree.setContextMenuPolicy(
-            Qt.ContextMenuPolicy.CustomContextMenu)
+        self.branch_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.branch_tree.customContextMenuRequested.connect(
             self._show_branch_context_menu
         )
@@ -266,8 +269,6 @@ class MainWindow(QMainWindow):
 
         # 用語集（折りたたみ可能）
         glossary_group = QGroupBox("用語集")
-        glossary_group.setCheckable(True)
-        glossary_group.setChecked(False)
         glossary_layout = QVBoxLayout(glossary_group)
 
         glossary_search = QLineEdit()
@@ -279,12 +280,15 @@ class MainWindow(QMainWindow):
         self.glossary_list.setRootIsDecorated(False)
 
         # サンプル用語
-        terms = ["コミット", "プッシュ", "プル", "ブランチ", "マージ"]
+        terms = self.glossary.get_all_terms()
         for term in terms:
-            self.glossary_list.addTopLevelItem(QTreeWidgetItem([term]))
+            self.glossary_list.addTopLevelItem(QTreeWidgetItem([term.term]))
 
         glossary_layout.addWidget(self.glossary_list)
         layout.addWidget(glossary_group)
+        self.glossary_list.itemDoubleClicked.connect(
+            self._on_glossary_item_double_clicked
+        )
 
         # 余白を埋める
         layout.addStretch()
@@ -309,13 +313,11 @@ class MainWindow(QMainWindow):
         unstaged_layout.addWidget(unstaged_label)
 
         self.unstaged_list = QListWidget()
-        self.unstaged_list.setContextMenuPolicy(
-            Qt.ContextMenuPolicy.CustomContextMenu)
+        self.unstaged_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.unstaged_list.customContextMenuRequested.connect(
             self._show_unstaged_context_menu
         )
-        self.unstaged_list.setSelectionMode(
-            QListWidget.SelectionMode.ExtendedSelection)
+        self.unstaged_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         unstaged_layout.addWidget(self.unstaged_list)
 
         # Stageボタン
@@ -334,13 +336,11 @@ class MainWindow(QMainWindow):
         staged_layout.addWidget(staged_label)
 
         self.staged_list = QListWidget()
-        self.staged_list.setContextMenuPolicy(
-            Qt.ContextMenuPolicy.CustomContextMenu)
+        self.staged_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.staged_list.customContextMenuRequested.connect(
             self._show_staged_context_menu
         )
-        self.staged_list.setSelectionMode(
-            QListWidget.SelectionMode.ExtendedSelection)
+        self.staged_list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
         staged_layout.addWidget(self.staged_list)
 
         # Unstageボタン
@@ -618,8 +618,7 @@ class MainWindow(QMainWindow):
 
         # 説明があれば追加
         if result.description:
-            self.command_history.appendPlainText(
-                f"    ├─ {result.description}")
+            self.command_history.appendPlainText(f"    ├─ {result.description}")
 
         # エラーメッセージがあれば追加
         if result.error_message:
@@ -849,3 +848,18 @@ class MainWindow(QMainWindow):
             clipboard = QApplication.clipboard()
             clipboard.setText(text)
             self.operation_label.setText("✓ 選択したテキストをコピーしました")
+
+    # ==================== 用語集ダイアログ関連 ====================
+
+    def _on_glossary_item_double_clicked(self, item: QTreeWidgetItem):
+        """用語集アイテムがダブルクリックされた時の処理"""
+        term_text = item.text(0)
+        term = self.glossary.get_term(term_text)
+        if term:
+            self._show_glossary_detail(term)
+
+    def _show_glossary_detail(self, term: GlossaryTerm):
+        """用語集の詳細ダイアログを表示"""
+        dialog = GlossaryDetailDialog(term, self)
+        dialog.show()
+        self.current_dialog = dialog
