@@ -543,7 +543,7 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "情報", "削除するブランチを選択してください")
             return
 
-        branch_name = selected_items[0].text(0).removeprefix("● ")
+        branch_name = selected_items[0].text(0).removeprefix("● ").strip()
         result = self.controller.git.delete_branch(branch_name)
         if not result.success:
             QMessageBox.warning(self, "エラー", result.error_message)
