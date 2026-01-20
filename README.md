@@ -53,8 +53,11 @@ Python 環境が不要な実行ファイルを配布しています。
 # バイナリのダウンロード（Releases ページから）
 wget https://github.com/NekoChan9382/leafgit/releases/latest/download/leafgit-linux-x86_64
 
+# 権限付与
+chmod +x leafgit-linux-x86_64
+
 # 実行
-./leafgit
+./leafgit-linux-x86_64
 ```
 
 #### Windows
