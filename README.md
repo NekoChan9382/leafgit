@@ -32,8 +32,6 @@ Git/GitHub の操作を GUI で行うための学習支援アプリケーショ�
 
 ### GitHub 連携
 
-- Personal Access Token 認証
-- リポジトリ一覧表示とクローン
 - リモートリポジトリへの push/pull
 
 ## 必要要件
