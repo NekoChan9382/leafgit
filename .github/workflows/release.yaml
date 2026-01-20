@@ -53,8 +53,8 @@ jobs:
       - name: Create release assets
         run: |
           mkdir release-assets
-          mv artifacts/leafgit-linux/leafgit/leafgit release-assets/leafgit-linux-x86_64
-          mv artifacts/leafgit-windows/leafgit/leafgit.exe release-assets/leafgit-windows-x86_64.exe
+          mv artifacts/leafgit-linux/leafgit release-assets/leafgit-linux-x86_64
+          mv artifacts/leafgit-windows/leafgit.exe release-assets/leafgit-windows-x86_64.exe
           chmod +x release-assets/leafgit-linux-x86_64
 
       - name: Create release note
