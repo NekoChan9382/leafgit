@@ -60,13 +60,19 @@ jobs:
       - name: create release note
         id: create_release_note
         run: |
-          echo "::set-output name=note::$(echo "## Release ${{ github.ref_name }}\n\n- Built Linux and Windows executables.\n- Download the assets below.")"
+          TEMPLATE=$(cat .github/release_template.md)
+          TEMPLATE=${TEMPLATE//\{VERSION\}/${GITHUB_REF_NAME}}
+
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_OUTPUT
+          echo "$TEMPLATE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: create release page
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: release-assets/*
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+          body: ${{ steps.create_release_note.outputs.RELEASE_BODY }}
       
