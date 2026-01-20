@@ -24,8 +24,10 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
     [],
-    exclude_binaries=True,
     name='leafgit',
     debug=False,
     bootloader_ignore_signals=False,
@@ -37,15 +39,4 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon='src/resources/icons/icon.ico'
-)
-
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='leafgit',
 )
