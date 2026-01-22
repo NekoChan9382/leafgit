@@ -142,6 +142,8 @@ flake8 src/
 ## スクリーンショット
 ![Stage](images/screenshots/stage.png)
 ![Commit](images/screenshots/commit.png)
+![Windows](images/screenshots/windows.png)
+![Glossary](images/screenshots/glossary.png)
 
 ## ライセンス
 
