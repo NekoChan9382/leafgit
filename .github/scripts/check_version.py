@@ -51,7 +51,7 @@ def compare_versions(old_ver: str, new_ver: str) -> bool:
 
 
 def main():
-    is_skip = os.getenv("SKIP_VERSION_CHECK", "false").lower() == "true"
+    is_skip = os.getenv("SKIP_RELEASE", "false").lower() == "true"
     if is_skip:
         print("Release is manually skipped.")
         set_output("skip_release", "true")
@@ -64,13 +64,12 @@ def main():
     # 現在のバージョンを取得
     try:
         current_version = get_version_from_file(init_file)
+        previous_version = get_version_from_git("HEAD^", init_file)
         print(f"Current version: {current_version}")
+        print(f"Previous version: {previous_version}")
     except Exception as e:
-        print(f"Error reading current version: {e}")
+        print(f"Error reading version: {e}")
         return 1
-
-    # 前回のバージョンを取得（HEAD^から）
-    previous_version = get_version_from_git("HEAD^", init_file)
 
     if previous_version is None:
         print("Previous version not found (possibly first commit).")
@@ -78,8 +77,6 @@ def main():
         set_output("skip_release", "false")
         set_output("new_version", current_version)
         return 0
-
-    print(f"Previous version: {previous_version}")
 
     # バージョン比較
     if current_version == previous_version:
