@@ -21,10 +21,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: Get labels
+        id: labels
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          json=$(gh pr view "$PR_NUMBER" --json labels | jq -c '.labels|map(.name)')
+          echo "json=$json" >> "$GITHUB_OUTPUT"
+
       - name: Check skip-release label
         id: check_label
         run: |
-          if [[ "${{ github.event.pull_request.labels[*] }}" == *"skip-release"* ]]; then
+          if [[ "${{ steps.labels.outputs.json }}" == *"skip-release"* ]]; then
             echo "is-releasing=false" >> $GITHUB_OUTPUT
           else
             echo "is-releasing=true" >> $GITHUB_OUTPUT
@@ -36,7 +46,7 @@ jobs:
           pip install packaging
           python .github/scripts/check_version.py
         env:
-          SKIP_RELEASE: ${{ steps.check_label.outputs.is-releasing }}
+          IS_RELEASING: ${{ steps.check_label.outputs.is-releasing }}
 
   notify-error:
     needs: check-version

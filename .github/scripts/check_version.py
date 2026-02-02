@@ -51,7 +51,7 @@ def compare_versions(old_ver: str, new_ver: str) -> bool:
 
 
 def main():
-    is_skip = os.getenv("SKIP_RELEASE", "false").lower() == "true"
+    is_skip = os.getenv("IS_RELEASING", "false").lower() == "false"
     if is_skip:
         print("Release is manually skipped.")
         set_output("skip_release", "true")
