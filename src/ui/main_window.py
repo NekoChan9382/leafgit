@@ -470,9 +470,7 @@ class MainWindow(QMainWindow):
             self, "リポジトリを選択", "", QFileDialog.Option.ShowDirsOnly
         )
         if path:
-            result = self.controller.git.open_repository(path)
-            if not result.success:
-                QMessageBox.warning(self, "エラー", result.error_message)
+            self.controller.git.open_repository(path)
 
     def _on_init_repository(self):
         """新規リポジトリを作成"""
@@ -480,9 +478,7 @@ class MainWindow(QMainWindow):
             self, "リポジトリを作成する場所を選択", "", QFileDialog.Option.ShowDirsOnly
         )
         if path:
-            result = self.controller.git.init_repository(path)
-            if not result.success:
-                QMessageBox.warning(self, "エラー", result.error_message)
+            self.controller.git.init_repository(path)
 
     def _on_commit(self):
         """コミットを実行"""
