@@ -265,12 +265,14 @@ class GitController(QObject):
             self.branch_changed.emit(self.current_branch or "")
         return result
 
-    def merge_branch(self, source_branch: str) -> CommandResult:
+    def merge_branch(
+        self, source_branch: str, target_branch: str = None
+    ) -> CommandResult:
         """ブランチをマージ"""
         if not self._ensure_repository():
             return self._no_repository_error("git merge")
 
-        result = self._git_ops.merge_branch(source_branch)
+        result = self._git_ops.merge_branch(source_branch, target_branch)
         self.command_executed.emit(result)
         if result.success:
             self._refresh_files()
