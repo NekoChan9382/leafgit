@@ -5,6 +5,16 @@ from PySide6.QtCore import QObject, Signal
 
 from core.git_operations import GitOperations
 from models import CommandResult, Glossary, GlossaryTerm
+from utils.logger import get_logger
+
+from git.exc import (
+    GitCommandError,
+    InvalidGitRepositoryError,
+    NoSuchPathError,
+    GitCommandNotFound,
+)
+
+logger = get_logger(__name__)
 
 
 class AppController(QObject):
@@ -52,6 +62,13 @@ class GitController(QObject):
     branch_changed = Signal(str)  # ブランチが変化した
     error_occurred = Signal(str)  # エラーが発生した
 
+    _EXCEPTIONS = {
+        GitCommandError: "Gitコマンドの実行中にエラーが発生しました",
+        InvalidGitRepositoryError: "Gitリポジトリが無効もしくは存在しません",
+        NoSuchPathError: "指定されたパスが存在しません",
+        GitCommandNotFound: "Gitコマンドが見つかりません",
+    }
+
     def __init__(self):
         super().__init__()
         self._git_ops: Optional[GitOperations] = None
@@ -74,11 +91,36 @@ class GitController(QObject):
             return None
         return self._git_ops.get_current_branch()
 
+    def _handle_error(
+        self, e: Exception, command: str, description: str
+    ) -> CommandResult:
+
+        friendly_msg = ""
+        for exc, msg in self._EXCEPTIONS.items():
+            if isinstance(e, exc):
+                logger.error(f"{msg}: {e}")
+                friendly_msg = msg
+                break
+        else:
+            friendly_msg = f"不明なエラーが発生しました: {str(e)}"
+            logger.error(f"{friendly_msg}: {e}")
+
+        result = CommandResult(
+            success=False,
+            command=command,
+            description=description,
+            error_message=friendly_msg,
+        )
+        self.error_occurred.emit(friendly_msg)
+        return result
+
     # ==================== リポジトリ操作 ====================
 
     def open_repository(self, path: str) -> CommandResult:
         """既存リポジトリを開く"""
         try:
+            if self._git_ops is not None:
+                self.close_repository()
             self._git_ops = GitOperations.open_repository(path)
             self._repo_path = path
             self.repository_opened.emit(path)
@@ -91,18 +133,18 @@ class GitController(QObject):
                 output=f"リポジトリ: {path}",
             )
         except Exception as e:
-            result = CommandResult(
-                success=False,
+            result = self._handle_error(
+                e,
                 command=f"cd {path}",
                 description="リポジトリを開く",
-                error_message=str(e),
             )
-            self.error_occurred.emit(str(e))
             return result
 
     def init_repository(self, path: str) -> CommandResult:
         """新規リポジトリを作成"""
         try:
+            if self._git_ops is not None:
+                self.close_repository()
             self._git_ops = GitOperations.init_repository(path)
             self._repo_path = path
             result = CommandResult(
@@ -265,12 +307,14 @@ class GitController(QObject):
             self.branch_changed.emit(self.current_branch or "")
         return result
 
-    def merge_branch(self, source_branch: str) -> CommandResult:
+    def merge_branch(
+        self, source_branch: str, target_branch: str = None
+    ) -> CommandResult:
         """ブランチをマージ"""
         if not self._ensure_repository():
             return self._no_repository_error("git merge")
 
-        result = self._git_ops.merge_branch(source_branch)
+        result = self._git_ops.merge_branch(source_branch, target_branch)
         self.command_executed.emit(result)
         if result.success:
             self._refresh_files()

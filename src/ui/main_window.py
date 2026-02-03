@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QInputDialog,
+    QDialog,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
@@ -39,6 +40,7 @@ from PySide6.QtWidgets import QApplication
 
 from models.glossary import GlossaryTerm
 from ui.dialogs.glossary_dialog import GlossaryDetailDialog
+from ui.dialogs.merge_dialog import MergeDialog
 
 logger = get_logger(__name__)
 
@@ -96,6 +98,11 @@ class MainWindow(QMainWindow):
         update_action.triggered.connect(self._update_file_tree)
         file_menu.addAction(update_action)
 
+        close_repo_action = QAction("リポジトリを閉じる(&L)", self)
+        close_repo_action.setShortcut("Ctrl+L")
+        close_repo_action.triggered.connect(self._on_close_repository)
+        file_menu.addAction(close_repo_action)
+
         exit_action = QAction("終了(&X)", self)
         exit_action.setShortcut("Ctrl+Q")
         exit_action.triggered.connect(self.close)
@@ -134,6 +141,9 @@ class MainWindow(QMainWindow):
         branch_menu.addAction(create_branch_action)
         branch_menu.addAction(QAction("ブランチを切り替え", self))
         branch_menu.addAction(QAction("ブランチを削除", self))
+        merge_branch_action = QAction("ブランチをマージ(&M)", self)
+        merge_branch_action.triggered.connect(self._on_merge_clicked)
+        branch_menu.addAction(merge_branch_action)
 
         # 表示メニュー
         view_menu = menubar.addMenu("表示(&V)")
@@ -465,9 +475,7 @@ class MainWindow(QMainWindow):
             self, "リポジトリを選択", "", QFileDialog.Option.ShowDirsOnly
         )
         if path:
-            result = self.controller.git.open_repository(path)
-            if not result.success:
-                QMessageBox.warning(self, "エラー", result.error_message)
+            self.controller.git.open_repository(path)
 
     def _on_init_repository(self):
         """新規リポジトリを作成"""
@@ -475,9 +483,11 @@ class MainWindow(QMainWindow):
             self, "リポジトリを作成する場所を選択", "", QFileDialog.Option.ShowDirsOnly
         )
         if path:
-            result = self.controller.git.init_repository(path)
-            if not result.success:
-                QMessageBox.warning(self, "エラー", result.error_message)
+            self.controller.git.init_repository(path)
+
+    def _on_close_repository(self):
+        """リポジトリを閉じる"""
+        self.controller.git.close_repository()
 
     def _on_commit(self):
         """コミットを実行"""
@@ -545,6 +555,20 @@ class MainWindow(QMainWindow):
 
         branch_name = selected_items[0].text(0).removeprefix("● ").strip()
         result = self.controller.git.delete_branch(branch_name)
+        if not result.success:
+            QMessageBox.warning(self, "エラー", result.error_message)
+
+    def _on_merge_branch(self):
+        """選択されたブランチをマージ"""
+        selected_items = self.branch_tree.selectedItems()
+        if not selected_items:
+            QMessageBox.information(
+                self, "情報", "マージするブランチを選択してください"
+            )
+            return
+
+        branch_name = selected_items[0].text(0).removeprefix("● ").strip()
+        result = self.controller.git.merge_branch(branch_name)
         if not result.success:
             QMessageBox.warning(self, "エラー", result.error_message)
 
@@ -865,3 +889,19 @@ class MainWindow(QMainWindow):
         dialog = GlossaryDetailDialog(term, all_terms, self)
         dialog.show()
         self.current_dialog = dialog
+
+    # ==================== ブランチ ====================
+
+    def _on_merge_clicked(self):
+        """マージボタンがクリックされた時の処理"""
+        current_branch = self.controller.git.current_branch
+        branches = self.controller.git.get_branches()
+        dialog = MergeDialog(
+            branches=branches, current_branch=current_branch, parent=self
+        )
+        if dialog.exec() == QDialog.Accepted:
+            source_branch = dialog.source_combo.currentText()
+            target_branch = dialog.target_combo.currentText()
+            result = self.controller.git.merge_branch(source_branch, target_branch)
+            if not result.success:
+                QMessageBox.warning(self, "エラー", result.error_message)

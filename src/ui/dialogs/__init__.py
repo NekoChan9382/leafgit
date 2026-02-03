@@ -4,4 +4,5 @@ from .glossary_dialog import GlossaryDetailDialog
 
 __all__ = [
     "GlossaryDetailDialog",
+    "MergeDialog",
 ]
