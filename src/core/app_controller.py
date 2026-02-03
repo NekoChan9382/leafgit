@@ -95,23 +95,23 @@ class GitController(QObject):
         self, e: Exception, command: str, description: str
     ) -> CommandResult:
 
+        friendly_msg = ""
         for exc, msg in self._EXCEPTIONS.items():
             if isinstance(e, exc):
                 logger.error(f"{msg}: {e}")
-                msg = msg
+                friendly_msg = msg
                 break
         else:
-            msg = "不明なエラーが発生しました"
-            logger.error(f"{msg}: {e}")
-            msg = str(e)
+            friendly_msg = f"不明なエラーが発生しました: {str(e)}"
+            logger.error(f"{friendly_msg}: {e}")
 
         result = CommandResult(
             success=False,
             command=command,
             description=description,
-            error_message=msg,
+            error_message=friendly_msg,
         )
-        self.error_occurred.emit(msg)
+        self.error_occurred.emit(friendly_msg)
         return result
 
     # ==================== リポジトリ操作 ====================
