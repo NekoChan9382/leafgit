@@ -66,6 +66,7 @@ class MergeDialog(QDialog):
         source_layout = QVBoxLayout(source_group)
         self.source_combo = QComboBox()
         self.source_combo.addItems(self.branches)
+        self.source_combo.setCurrentText(self.selected_branch)
         source_layout.addWidget(self.source_combo)
 
         branch_layout.addWidget(source_group)
@@ -79,6 +80,7 @@ class MergeDialog(QDialog):
         target_group_layout = QVBoxLayout(target_group)
         self.target_combo = QComboBox()
         self.target_combo.addItems(self.branches)
+        self.target_combo.setCurrentText(self.current_branch)
         target_group_layout.addWidget(self.target_combo)
 
         branch_layout.addWidget(target_group)
@@ -95,12 +97,12 @@ class MergeDialog(QDialog):
         button_layout.addStretch()
 
         self.cancel_btn = QPushButton("キャンセル")
-        # self.cancel_btn.clicked.connect(self.reject)
+        self.cancel_btn.clicked.connect(self._reject)
         button_layout.addWidget(self.cancel_btn)
 
         self.ok_btn = QPushButton("マージ")
         self.ok_btn.setDefault(True)
-        # self.ok_btn.clicked.connect(self._on_merge_clicked)
+        self.ok_btn.clicked.connect(self._accept)
         button_layout.addWidget(self.ok_btn)
 
         layout.addLayout(button_layout)
@@ -145,3 +147,13 @@ class MergeDialog(QDialog):
         merge_target = self.target_combo.currentText()
         merge_source = self.source_combo.currentText()
         return merge_target, merge_source
+
+    def _accept(self) -> None:
+        """OKボタンが押された時の処理"""
+        if self.source_combo.currentText() == self.target_combo.currentText():
+            return
+        super().accept()
+
+    def _reject(self) -> None:
+        """キャンセルボタンが押された時の処理"""
+        super().reject()
