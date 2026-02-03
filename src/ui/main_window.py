@@ -98,6 +98,11 @@ class MainWindow(QMainWindow):
         update_action.triggered.connect(self._update_file_tree)
         file_menu.addAction(update_action)
 
+        close_repo_action = QAction("リポジトリを閉じる(&L)", self)
+        close_repo_action.setShortcut("Ctrl+L")
+        close_repo_action.triggered.connect(self._on_close_repository)
+        file_menu.addAction(close_repo_action)
+
         exit_action = QAction("終了(&X)", self)
         exit_action.setShortcut("Ctrl+Q")
         exit_action.triggered.connect(self.close)
@@ -479,6 +484,10 @@ class MainWindow(QMainWindow):
         )
         if path:
             self.controller.git.init_repository(path)
+
+    def _on_close_repository(self):
+        """リポジトリを閉じる"""
+        self.controller.git.close_repository()
 
     def _on_commit(self):
         """コミットを実行"""
